@@ -11,11 +11,13 @@ from tensorflow.keras.layers import (
     RepeatVector, 
     Reshape, 
     Embedding,
-    Input)
+    Input,
+    BatchNormalization)
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.losses import CategoricalCrossentropy as cce_loss
 from tensorflow.keras.metrics import CategoricalCrossentropy as cce_metric, CategoricalAccuracy
+
 
 import numpy as np
 
@@ -79,7 +81,7 @@ class GenPhiloText(tf.keras.Model):
 
         return outputs
     
-def load_alt_model(emb_dim=32, n_a=128, n_unique=26, T_x=50, keep_prob=1, lambda_=1):
+def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1):
     """
     args:
         emb_dim -
@@ -111,6 +113,37 @@ def load_alt_model(emb_dim=32, n_a=128, n_unique=26, T_x=50, keep_prob=1, lambda
         outputs.append(out)
 
     return Model(inputs=[X, h_0, c_0], outputs=outputs)
+
+def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1):
+    """
+    args:
+        emb_dim -
+        n_a - 
+        n_unique - 
+        T_x -
+        keep_prob
+        lambda_
+    """
+
+    # instantiate sequential model
+    model = Sequential()
+
+    # m x T_x
+    model.add(Input(shape=(T_x, )))
+
+    # (m, T_x, n_unique)
+    model.add(Embedding(n_unique, emb_dim, embeddings_regularizer=L2(lambda_)))
+    model.add(LSTM(units=n_a, return_sequences=True))
+    model.add(Dropout(1 - keep_prob))
+    model.add(LSTM(units=n_a, return_sequences=False))
+    model.add(Dropout(1 - keep_prob))
+
+    # (m, n_unique)
+    model.add(Dense(units=n_unique))
+    model.add(BatchNormalization())
+    model.add(Activation(activation=tf.nn.softmax))
+
+    return model
 
 def load_inf_model():
     pass
@@ -144,7 +177,7 @@ if __name__ == "__main__":
 
     # instantiate custom model
     # model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
-    model = load_alt_model(n_a=n_a, n_unique=n_unique, T_x=T_x, keep_prob=0.7)
+    model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x, keep_prob=0.7)
 
     # compile 
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
