@@ -42,7 +42,7 @@ class GenPhiloText(tf.keras.Model):
     def call(self, inputs, **kwargs):
         # get batch of training examples, hidden state, and cell 
         # state inputs by destructuring inputs
-        X, h_0, c_0 = inputs[0], inputs[1], inputs[2]
+        X, h_0, c_0 = inputs
         h = h_0
         c = c_0
 
@@ -81,7 +81,7 @@ class GenPhiloText(tf.keras.Model):
 
         return outputs
     
-def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1):
+def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
     """
     args:
         emb_dim -
@@ -91,24 +91,48 @@ def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1)
         keep_prob
         lambda_
     """
-    X = Input(shape=(T_x, n_unique))
+    # define shape of batch of inputs including 
+    # hidden and cell states
+    X = Input(shape=(T_x,))
     h_0 = Input(shape=(n_a,), name='init_hidden_state')
     c_0 = Input(shape=(n_a,), name='init_cell_state')
 
+    # pass input X inside embedding layer such that X which is (m, T_x) 
+    # is transformed to (m, T_x, n_features) which the LSTM layer can accept
+    embeddings = Embedding(n_unique, emb_dim, name='character_lookup')(X)
+
+    # initialize hidden and cell states
     h = h_0
     c = c_0
 
+    # this will keep track of each predicted y output of each LSTM cell
     outputs = []
 
     # define architecture
     for t in range(T_x):
-        x = X[:, t, :]
+        # from here get slice of the embeddings such that shape 
+        # goes from (m, T_x, n_features) to (m, n_features), 
+        # since we are taking a single matrix from a single time step
+        x_t = embeddings[:, t, :]
 
-        x = Reshape(target_shape=(1, n_unique))(x)
-        whole_seq_y, h, c = LSTM(units=n_a, return_state=True)(inputs=x, initial_state=[h, c])
-        x = Dropout(1 - keep_prob)(h)
-        x = Dense(units=n_unique)(x)
-        out = Activation(activation=tf.nn.softmax)(x)
+        # because each timestep takes in a (m, 1, n_features)
+        # input we must reshape our input x at timestep
+        # from (m, n_features) to (m, 1, n_features)
+        x_t = Reshape(target_shape=(1, emb_dim))(x_t)
+
+        # pass the input x to the LSTM cell as well as the 
+        # hidden and cell states that will constantly change
+        states = LSTM(units=n_a, return_state=True)(inputs=x_t, initial_state=[h, c])
+        _, h, c = states
+
+        # pass the hidden state to the dense 
+        # layer and then normalize after
+        z_t = Dense(units=n_unique)(h)
+        z_t = BatchNormalization()(z_t)
+
+        # pass to final activation layer the normalized
+        # output of dense layer
+        out = Activation(activation=tf.nn.softmax)(z_t)
 
         outputs.append(out)
 
@@ -156,7 +180,8 @@ if __name__ == "__main__":
     T_x = 50
     n_unique = 26
     n_a = 128
-    X = np.random.rand(m, T_x, n_unique)
+    emb_dim = 32
+    X = np.random.randint(0, n_unique, size=(m, T_x))
 
     # we have to match the output of the prediction of our 
     # model which is a list of (100, 26) values. So instead of a 3D matrixc
@@ -177,12 +202,12 @@ if __name__ == "__main__":
 
     # instantiate custom model
     # model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
-    model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x, keep_prob=0.7)
+    model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x)
 
     # compile 
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
     model.summary()
 
     # train
-    model.fit([X, h_0, c_0], Y, epochs=100)
+    model.fit([X, h_0, c_0], Y, epochs=100, verbose=2)
     
