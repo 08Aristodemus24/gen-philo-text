@@ -119,18 +119,37 @@ def map_value_to_index(unique_ids, n_unique_ids, start, inverted=False):
     return dict(zip(unique_ids, list(range(start, n_unique_ids + start)))) \
     if inverted is False else dict(zip(list(range(start, n_unique_ids + start)), unique_ids))
 
-def init_sequences(corpus: str, char_to_idx: dict, T_x: int):
+def init_sequences_a(corpus: str, char_to_idx: dict, T_x: int):
     """
     turns our raw preprocessed corpus to a list of
     sequences each of which has a defined max length T_x.
     Note T_x must be less than or e.g. if there are 150000
     characters in the corpus then T_x must only be 149999
     this is to prevent an "index out of range" error when
-    generating a label/target y character
+    generating a label/target y character.
 
     e.g. "first step down.
     i was with jordan peterson.
     meaning is to be drawn from suffering."
+
+    with T_x of 5 becomes...
+
+    X = [
+        ['f', 'i', 'r', 's', 't],
+        ['i', 'r', 's', 't', ' '],
+        ...
+    ]
+
+    Y = [
+        ' ',
+        's',
+        ...
+    ]
+
+    of course this is not entirely the dataset we would get
+    after because each character token as we know will be
+    converted to its respective id/index. This merely to understand
+    what our the alternative model a will take in as input.
 
     args:
         corpus - 
@@ -159,5 +178,56 @@ def init_sequences(corpus: str, char_to_idx: dict, T_x: int):
         out_seqs.append(out_seq)
     
     return np.array(in_seqs), np.array(out_seqs)
+
+def init_sequences_b(corpus: str, char_to_idx: dict, T_x: int):
+    """
+    generates a input and target dataset by:
+
+    1. partitioning corpus first into sequences of length T_x + 1
+    2. shifting sequences by one character to the left to generate 
+    output/target sequence the model needs to learn
+
+    A sequence length of 0 will not be permitted and this
+    funciton will raise an error should T_x be 0
+    """
+
+    if T_x == 0:
+        raise ValueError("sequence length T_x cannot be 0. Choose a value above 0.")
+
+    # get total length of corpus
+    total_len = len(corpus)
+
+    # will contain our training examples serving as 
+    # our x and y values
+    in_seqs = []
+    out_seqs = []
+
+    # generate pairs of input and output sequences that 
+    # will serve as our training examples x and y
+    # loop through each character and every T_x char append it to the
+    for i in range(0, total_len, T_x + 1):
+        # slice corpus into input and output characters 
+        # and convert each character into their respective 
+        # indeces using char_to_idx mapping
+        partition = [char_to_idx[ch] for ch in corpus[i: i + (T_x + 1)]]
+        in_seq = partition[:-1]
+        out_seq = partition[1:]
+
+        # append input and output sequences
+        in_seqs.append(in_seq)
+        out_seqs.append(out_seq)
+
+    if total_len % (T_x + 1):
+        # calculate number of chars missing in last training example
+        n_chars_missed = T_x - len(in_seqs[-1])
+
+        # pad with zeroes to example with less than 100 chars
+        in_seqs[-1] = in_seqs[-1] + ([0] * n_chars_missed)
+        out_seqs[-1] = out_seqs[-1] + ([0] * n_chars_missed)
+
+    return in_seqs, out_seqs
+
+
+
 
     

@@ -80,8 +80,41 @@ class GenPhiloText(tf.keras.Model):
             outputs.append(out)
 
         return outputs
-    
-def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
+
+def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1):
+    """
+    args:
+        emb_dim -
+        n_a - 
+        n_unique - 
+        T_x -
+        keep_prob
+        lambda_
+    """
+
+    # instantiate sequential model
+    model = Sequential()
+
+    # (m, T_x)
+    model.add(Input(shape=(T_x, )))
+
+    # (m, T_x, n_unique)
+    model.add(Embedding(n_unique, emb_dim, embeddings_regularizer=L2(lambda_)))
+
+    # (m, T_x, n_a)
+    model.add(LSTM(units=n_a, return_sequences=True))
+
+    # (m, n_a)
+    model.add(LSTM(units=n_a, return_sequences=False))
+
+    # (m, n_unique)
+    model.add(Dense(units=n_unique))
+    model.add(BatchNormalization())
+    model.add(Activation(activation=tf.nn.softmax))
+
+    return model
+
+def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
     """
     args:
         emb_dim -
@@ -138,37 +171,6 @@ def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
 
     return Model(inputs=[X, h_0, c_0], outputs=outputs)
 
-def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1):
-    """
-    args:
-        emb_dim -
-        n_a - 
-        n_unique - 
-        T_x -
-        keep_prob
-        lambda_
-    """
-
-    # instantiate sequential model
-    model = Sequential()
-
-    # m x T_x
-    model.add(Input(shape=(T_x, )))
-
-    # (m, T_x, n_unique)
-    model.add(Embedding(n_unique, emb_dim, embeddings_regularizer=L2(lambda_)))
-    model.add(LSTM(units=n_a, return_sequences=True))
-    model.add(Dropout(1 - keep_prob))
-    model.add(LSTM(units=n_a, return_sequences=False))
-    model.add(Dropout(1 - keep_prob))
-
-    # (m, n_unique)
-    model.add(Dense(units=n_unique))
-    model.add(BatchNormalization())
-    model.add(Activation(activation=tf.nn.softmax))
-
-    return model
-
 def load_inf_model():
     pass
 
@@ -202,7 +204,7 @@ if __name__ == "__main__":
 
     # instantiate custom model
     # model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
-    model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    model = load_alt_model_b(n_a=n_a, n_unique=n_unique, T_x=T_x)
 
     # compile 
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
