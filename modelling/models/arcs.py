@@ -224,3 +224,4 @@ if __name__ == "__main__":
     model.fit([X, h_0, c_0], Y, epochs=100, verbose=2)
     
     # save model
+    model.save('../saved/models/test_model.h5', save_format='h5')
