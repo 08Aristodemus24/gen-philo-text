@@ -18,28 +18,32 @@ from tensorflow.keras.regularizers import L2
 from tensorflow.keras.losses import CategoricalCrossentropy as cce_loss
 from tensorflow.keras.metrics import CategoricalCrossentropy as cce_metric, CategoricalAccuracy
 
-
 import numpy as np
 
+
+
+@tf.keras.utils.register_keras_serializable()
 class GenPhiloText(tf.keras.Model):
-    def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, keep_prob=1, lambda_=1):
-        super(GenPhiloText, self).__init__()
-
-        # instantiate layers
-        self.lstm_cell = LSTM(units=n_a, return_state=True)
-        self.dense_layer = Dense(units=n_unique)
-        self.out_layer = Activation(activation=tf.nn.softmax)
-        self.drop_layer = Dropout(1 - keep_prob)
-
-        self.char_emb_layer = Embedding(n_unique, emb_dim, embeddings_regularizer=L2(lambda_))
-
-        # utility layers
-        self.reshape_layer = Reshape(target_shape=(1, n_unique))
+    def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, **kwargs):
+        super(GenPhiloText, self).__init__(**kwargs)
+        self.emb_dim = emb_dim
+        self.n_a = n_a
+        self.n_unique = n_unique
 
         # number of time steps or length of longest sequences/training example
         self.n_time_steps = T_x
 
-    def call(self, inputs, **kwargs):
+        # instantiate layers
+        self.char_emb_layer = Embedding(n_unique, emb_dim)
+        self.lstm_cell = LSTM(units=n_a, return_state=True)
+        self.dense_layer = Dense(units=n_unique)
+        self.out_layer = Activation(activation=tf.nn.softmax)
+        
+        # utility layers
+        self.reshape_layer = Reshape(target_shape=(1, emb_dim))
+        self.norm_layer = BatchNormalization()
+
+    def call(self, inputs):
         # get batch of training examples, hidden state, and cell 
         # state inputs by destructuring inputs
         X, h_0, c_0 = inputs
@@ -51,37 +55,51 @@ class GenPhiloText(tf.keras.Model):
         outputs = []
 
         # define architecture
+
+        # convert (m, T_x) inputs to embeddings of (m, T_x, n_feawtures)
+        embeddings = self.char_emb_layer(X)
+
+        # loop over each timestep
         for t in range(self.n_time_steps):
-            # get slice of input such that shape goes from
-            # m, T_x, n_unique to m, n_unique, since we are taking
-            # a single matrix from a single time step
-            x = X[:, t, :]
+            
+
+            # from here get slice of the embeddings such that shape 
+            # goes from (m, T_x, n_features) to (m, n_features), 
+            # since we are taking a single matrix from a single time step
+            x_t = embeddings[:, t, :]
 
             # because each timestep takes in a (m, 1, n_unique)
             # input we must reshape our input x at timestep t
-            x = self.reshape_layer(x)
+            x_t = self.reshape_layer(x_t)
 
             # pass the input x to the LSTM cell as well as the 
             # hidden and cell states that will constantly change
-            whole_seq_y, h, c = self.lstm_cell(inputs=x, initial_state=[h, c])
+            states = self.lstm_cell(inputs=x_t, initial_state=[h, c])
+            _, h, c = states
 
-            # pass final hidden state to dropout layer
-            # during training
-            if kwargs['training'] == True:
-                drop = self.drop_layer(h)
 
+            # pass final hidden state to the dense layer
             # pass the hidden state to the dense layer
-            x = self.dense_layer(drop if kwargs['training'] == True else h)
-            out = self.out_layer(x)
-            print(out)
+            z_t = self.dense_layer(h)
+            z_t = self.norm_layer(z_t)
+            out = self.out_layer(z_t)
 
             # when all outputs are collected this will 
             # have dimensionality (T_y, m, n_unique)
             outputs.append(out)
 
         return outputs
+    
+    def get_config(self):
+        config = super(GenPhiloText, self).get_config()
+        config['emb_dim'] = self.emb_dim
+        config['n_a'] = self.n_a
+        config['n_unique'] = self.n_unique
+        config['T_x'] = self.n_time_steps
 
-def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1):
+        return config
+
+def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
     """
     args:
         emb_dim -
@@ -99,7 +117,7 @@ def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128, keep_prob=1, lambda_=1)
     model.add(Input(shape=(T_x, )))
 
     # (m, T_x, n_unique)
-    model.add(Embedding(n_unique, emb_dim, embeddings_regularizer=L2(lambda_)))
+    model.add(Embedding(n_unique, emb_dim))
 
     # (m, T_x, n_a)
     model.add(LSTM(units=n_a, return_sequences=True))
@@ -213,15 +231,19 @@ if __name__ == "__main__":
     metrics = [CategoricalAccuracy(), cce_metric()]
 
     # instantiate custom model
-    # model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
-    model = load_alt_model_b(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    # model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    # model = load_alt_model_b(n_a=n_a, n_unique=n_unique, T_x=T_x)
 
     # compile 
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    model.summary()
+    # model.summary()
 
     # train
     model.fit([X, h_0, c_0], Y, epochs=100, verbose=2)
     
     # save model
-    model.save('../saved/models/test_model.h5', save_format='h5')
+    model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
+    # model.save('../saved/models/test_model_a.h5', save_format='h5')
+    # model.save('../saved/models/test_model_b.h5', save_format='h5')
+    
