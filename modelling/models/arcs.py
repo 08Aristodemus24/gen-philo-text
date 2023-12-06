@@ -134,6 +134,16 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
     # is transformed to (m, T_x, n_features) which the LSTM layer can accept
     embeddings = Embedding(n_unique, emb_dim, name='character_lookup')(X)
 
+    # define reshaper, Lstm, dense, norm, and act layers here
+    # since each layer will only be used once this is because we need
+    # the weights of the layers at each time step to be the same and not
+    # constantly changing
+    reshape_layer = Reshape(target_shape=(1, emb_dim))
+    lstm_cell = LSTM(units=n_a, return_state=True)
+    dense_layer = Dense(units=n_unique)
+    norm_layer = BatchNormalization()
+    out_layer = Activation(activation=tf.nn.softmax)
+
     # initialize hidden and cell states
     h = h_0
     c = c_0
@@ -151,21 +161,21 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
         # because each timestep takes in a (m, 1, n_features)
         # input we must reshape our input x at timestep
         # from (m, n_features) to (m, 1, n_features)
-        x_t = Reshape(target_shape=(1, emb_dim))(x_t)
+        x_t = reshape_layer(x_t)
 
         # pass the input x to the LSTM cell as well as the 
         # hidden and cell states that will constantly change
-        states = LSTM(units=n_a, return_state=True)(inputs=x_t, initial_state=[h, c])
+        states = lstm_cell(inputs=x_t, initial_state=[h, c])
         _, h, c = states
 
         # pass the hidden state to the dense 
         # layer and then normalize after
-        z_t = Dense(units=n_unique)(h)
-        z_t = BatchNormalization()(z_t)
+        z_t = dense_layer(h)
+        z_t = norm_layer(z_t)
 
         # pass to final activation layer the normalized
         # output of dense layer
-        out = Activation(activation=tf.nn.softmax)(z_t)
+        out = out_layer(z_t)
 
         outputs.append(out)
 
@@ -213,3 +223,4 @@ if __name__ == "__main__":
     # train
     model.fit([X, h_0, c_0], Y, epochs=100, verbose=2)
     
+    # save model
