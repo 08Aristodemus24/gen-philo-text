@@ -194,7 +194,7 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, ):
+def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_idx: dict, idx_to_char: dict, T_x: int=100):
     """
     args:
         char_emb_layer - 
@@ -202,13 +202,45 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, ):
         dense_layer - 
         norm_layer - 
     """
+    # retrieve number of unique chars from dense layer
+    n_chars = dense_layer.units
 
-    # define shape of batch of inputs including 
-    # hidden and cell states
-    X = Input(shape=(T_x,))
+    mask_vector = np.zeros(shape=(1, n_chars))
+
+    # define shape of batch of inputs including hidden and cell 
+    # states. Note in the prediction stage X will only be a (1, 1)
+    # input representing one example and 1 timestep
+    X = Input(shape=(1,))
     h_0 = Input(shape=(n_a,), name='init_hidden_state')
     c_0 = Input(shape=(n_a,), name='init_cell_state')
 
+    idx = -1
+
+    # a flag that represents how many newlines we have left before
+    # sequence generation stops
+    num_newlines = 2
+
+    # extract learned embeddings from embedding matrix.
+    # once (1, 1) input is fed output embeddings will now be 
+    # (1, 1, 32) 32 can be variable depending on the initially 
+    # set number of features during training
+    x_t = char_emb_layer(X)
+    h = h_0
+    c = c_0
+
+    i = 0
+    while num_newlines != 0 and i != T_x:
+        # since embedding x_t is already a (1, 1, 32) input
+        # we can feed it directly to our lstm_cell
+        states = lstm_cell(inputs=x_t, initial_state=[h, c])
+        _, h, c = states
+
+        # pass the hidden state to the dense 
+        # layer and then normalize after
+        z_t = dense_layer(h)
+        z_t = norm_layer(z_t)
+
+        z_t
 
 
 if __name__ == "__main__":
