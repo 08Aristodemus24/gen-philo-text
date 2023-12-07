@@ -205,6 +205,7 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
     # retrieve number of unique chars from dense layer
     n_chars = dense_layer.units
 
+    
     mask_vector = np.zeros(shape=(1, n_chars))
 
     # define shape of batch of inputs including hidden and cell 
