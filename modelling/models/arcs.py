@@ -34,14 +34,14 @@ class GenPhiloText(tf.keras.Model):
         self.n_time_steps = T_x
 
         # instantiate layers
-        self.char_emb_layer = Embedding(n_unique, emb_dim)
-        self.lstm_cell = LSTM(units=n_a, return_state=True)
-        self.dense_layer = Dense(units=n_unique)
+        self.char_emb_layer = Embedding(n_unique, emb_dim, name='char-emb-layer')
+        self.lstm_cell = LSTM(units=n_a, return_state=True, name='lstm-cell')
+        self.dense_layer = Dense(units=n_unique, name='dense-layer')
         self.out_layer = Activation(activation=tf.nn.softmax)
         
         # utility layers
-        self.reshape_layer = Reshape(target_shape=(1, emb_dim))
-        self.norm_layer = BatchNormalization()
+        self.reshape_layer = Reshape(target_shape=(1, emb_dim), name='reshape-layer')
+        self.norm_layer = BatchNormalization(name='norm-layer')
 
     def call(self, inputs):
         # get batch of training examples, hidden state, and cell 
@@ -51,8 +51,10 @@ class GenPhiloText(tf.keras.Model):
         c = c_0
 
         # print(X[:, 1, :])
-        # this will keep track of each predicted y output of each LSTM cell
-        outputs = []
+        # this will keep track of each not predicted y outputs
+        # but the preliminary logits outputted by the dense or batch norm
+        # layer before it goes to the activation layer
+        out_logits = []
 
         # define architecture
 
@@ -82,13 +84,12 @@ class GenPhiloText(tf.keras.Model):
             # pass the hidden state to the dense layer
             z_t = self.dense_layer(h)
             z_t = self.norm_layer(z_t)
-            out = self.out_layer(z_t)
 
             # when all outputs are collected this will 
             # have dimensionality (T_y, m, n_unique)
-            outputs.append(out)
+            out_logits.append(z_t)
 
-        return outputs
+        return out_logits
     
     def get_config(self):
         config = super(GenPhiloText, self).get_config()
@@ -106,8 +107,6 @@ def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
         n_a - 
         n_unique - 
         T_x -
-        keep_prob
-        lambda_
     """
 
     # instantiate sequential model
@@ -139,35 +138,35 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
         n_a - 
         n_unique - 
         T_x -
-        keep_prob
-        lambda_
     """
+
     # define shape of batch of inputs including 
     # hidden and cell states
-    X = Input(shape=(T_x,))
-    h_0 = Input(shape=(n_a,), name='init_hidden_state')
-    c_0 = Input(shape=(n_a,), name='init_cell_state')
+    X = Input(shape=(T_x,), name='X')
+    h_0 = Input(shape=(n_a,), name='init-hidden-state')
+    c_0 = Input(shape=(n_a,), name='init-cell-state')
 
     # pass input X inside embedding layer such that X which is (m, T_x) 
     # is transformed to (m, T_x, n_features) which the LSTM layer can accept
-    embeddings = Embedding(n_unique, emb_dim, name='character_lookup')(X)
+    embeddings = Embedding(n_unique, emb_dim, name='character-lookup')(X)
 
     # define reshaper, Lstm, dense, norm, and act layers here
     # since each layer will only be used once this is because we need
     # the weights of the layers at each time step to be the same and not
     # constantly changing
-    reshape_layer = Reshape(target_shape=(1, emb_dim))
-    lstm_cell = LSTM(units=n_a, return_state=True)
-    dense_layer = Dense(units=n_unique)
-    norm_layer = BatchNormalization()
-    out_layer = Activation(activation=tf.nn.softmax)
+    reshape_layer = Reshape(target_shape=(1, emb_dim), name='reshape-layer')
+    lstm_cell = LSTM(units=n_a, return_state=True, name='lstm-cell')
+    dense_layer = Dense(units=n_unique, name='dense-layer')
+    norm_layer = BatchNormalization(name='norm-layer')
 
     # initialize hidden and cell states
     h = h_0
     c = c_0
 
-    # this will keep track of each predicted y output of each LSTM cell
-    outputs = []
+    # this will keep track of each not predicted y outputs
+    # but the preliminary logits outputted by the dense or batch norm
+    # layer before it goes to the activation layer
+    out_logits = []
 
     # define architecture
     for t in range(T_x):
@@ -191,16 +190,24 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
         z_t = dense_layer(h)
         z_t = norm_layer(z_t)
 
-        # pass to final activation layer the normalized
-        # output of dense layer
-        out = out_layer(z_t)
+        out_logits.append(z_t)
 
-        outputs.append(out)
+    return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-    return Model(inputs=[X, h_0, c_0], outputs=outputs)
+def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, ):
+    """
+    args:
+        char_emb_layer - 
+        lstm_cell - 
+        dense_layer - 
+        norm_layer - 
+    """
 
-def load_inf_model():
-    pass
+    # define shape of batch of inputs including 
+    # hidden and cell states
+    X = Input(shape=(T_x,))
+    h_0 = Input(shape=(n_a,), name='init_hidden_state')
+    c_0 = Input(shape=(n_a,), name='init_cell_state')
 
 
 
@@ -227,8 +234,8 @@ if __name__ == "__main__":
     c_0 = np.zeros(shape=(m, n_a))
 
     opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
-    loss = cce_loss()
-    metrics = [CategoricalAccuracy(), cce_metric()]
+    loss = cce_loss(from_logits=True)
+    metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
 
     # instantiate custom model
     model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
