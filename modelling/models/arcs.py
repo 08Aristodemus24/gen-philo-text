@@ -194,7 +194,7 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_idx: dict, idx_to_char: dict, T_x: int=100):
+def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_idx, T_x: int=100, chars_to_skip: list=['[UNK]']):
     """
     args:
         char_emb_layer - 
@@ -204,9 +204,15 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
     """
     # retrieve number of unique chars from dense layer
     n_chars = dense_layer.units
+    n_a = lstm_cell.units
+    print(n_chars)
+    print(n_a)
 
-    
-    mask_vector = np.zeros(shape=(1, n_chars))
+    # ids to skip has shape (1, 1)
+    ids_to_skip = char_to_idx(chars_to_skip)[:, None]
+    sparse_mask_vector = tf.SparseTensor(values=[float('-inf')] * len(ids_to_skip), indices=ids_to_skip, dense_shape=[n_chars])
+    dense_mask_vector = tf.reshape(tf.sparse.to_dense(sparse_mask_vector), shape=(1, -1))
+    print(dense_mask_vector)
 
     # define shape of batch of inputs including hidden and cell 
     # states. Note in the prediction stage X will only be a (1, 1)
@@ -241,7 +247,10 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
         z_t = dense_layer(h)
         z_t = norm_layer(z_t)
 
-        z_t
+        # because tensor after norm layer is (1, 57) for example should
+        # our n unique chars be 57, we must also have our mask tensor to
+        # be of the same shape
+        
 
 
 if __name__ == "__main__":

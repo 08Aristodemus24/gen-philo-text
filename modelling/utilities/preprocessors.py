@@ -1,4 +1,6 @@
 # define data preprocessor functions here
+import tensorflow as tf
+
 import re
 import numpy as np
 
@@ -94,30 +96,46 @@ def preprocess(text_string: str):
 
     return temp
 
-def map_value_to_index(unique_ids, n_unique_ids, start, inverted=False):
+# def map_value_to_index(unique_ids, n_unique_ids, start, inverted=False):
+#     """
+#     returns a dictionary mapping each unique value to an integer. 
+#     This is akin to generating a word to index dictionary where each
+#     unique word based on their freqeuncy will be mapped from indeces
+#     1 to |V|.
+
+#     e.g. >>> start = 0
+#     >>> val_to_index = dict(zip(ids, list(range(start, n_ids + start))))
+#     >>> val_to_index
+#     {1: 0, 2: 1, 3: 2, 4: 3, 5: 4}
+#     >>>
+#     >>> start = 10
+#     >>> val_to_index = dict(zip(ids, list(range(start, n_ids + start))))
+#     >>> val_to_index
+#     {1: 10, 2: 11, 3: 12, 4: 13, 5: 14}
+
+#     args:
+#         unique_user_ids - an array/vector/set of all unique user id's from
+#         perhaps a ratings dataset
+#     """
+
+#     return dict(zip(unique_ids, list(range(start, n_unique_ids + start)))) \
+#     if inverted is False else dict(zip(list(range(start, n_unique_ids + start)), unique_ids))
+
+def map_value_to_index(unique_tokens: list, inverted=False):
     """
-    returns a dictionary mapping each unique value to an integer. 
+    returns a lookup table mapping each unique value to an integer. 
     This is akin to generating a word to index dictionary where each
     unique word based on their freqeuncy will be mapped from indeces
     1 to |V|.
 
-    e.g. >>> start = 0
-    >>> val_to_index = dict(zip(ids, list(range(start, n_ids + start))))
-    >>> val_to_index
-    {1: 0, 2: 1, 3: 2, 4: 3, 5: 4}
-    >>>
-    >>> start = 10
-    >>> val_to_index = dict(zip(ids, list(range(start, n_ids + start))))
-    >>> val_to_index
-    {1: 10, 2: 11, 3: 12, 4: 13, 5: 14}
-
     args:
-        unique_user_ids - an array/vector/set of all unique user id's from
-        perhaps a ratings dataset
+        unique_tokens - 
+        inverted - 
     """
+    char_to_idx = tf.keras.layers.StringLookup(vocabulary=unique_tokens, mask_token=None)
+    idx_to_char = tf.keras.layers.StringLookup(vocabulary=char_to_idx.get_vocabulary(), invert=True, mask_token=None)
 
-    return dict(zip(unique_ids, list(range(start, n_unique_ids + start)))) \
-    if inverted is False else dict(zip(list(range(start, n_unique_ids + start)), unique_ids))
+    return char_to_idx if inverted == False else idx_to_char
 
 def init_sequences_a(corpus: str, char_to_idx: dict, T_x: int):
     """
@@ -170,14 +188,14 @@ def init_sequences_a(corpus: str, char_to_idx: dict, T_x: int):
         # slice corpus into input and output characters 
         # and convert each character into their respective 
         # indeces using char_to_idx mapping
-        in_seq = [char_to_idx[ch] for ch in corpus[i: i + T_x]]
-        out_seq = char_to_idx[corpus[i + T_x]]
+        in_seq = [ch for ch in corpus[i: i + T_x]]
+        out_seq = corpus[i + T_x]
 
         # append input and output sequences
         in_seqs.append(in_seq)
         out_seqs.append(out_seq)
     
-    return np.array(in_seqs), np.array(out_seqs)
+    return char_to_idx(in_seqs), char_to_idx(out_seqs)
 
 def init_sequences_b(corpus: str, char_to_idx: dict, T_x: int):
     """
@@ -209,7 +227,7 @@ def init_sequences_b(corpus: str, char_to_idx: dict, T_x: int):
         # slice corpus into input and output characters 
         # and convert each character into their respective 
         # indeces using char_to_idx mapping
-        partition = [char_to_idx[ch] for ch in corpus[i: i + (T_x + 1)]]
+        partition = [ch for ch in corpus[i: i + (T_x + 1)]]
         in_seq = partition[:-1]
         out_seq = partition[1:]
 
@@ -222,10 +240,12 @@ def init_sequences_b(corpus: str, char_to_idx: dict, T_x: int):
         n_chars_missed = T_x - len(in_seqs[-1])
 
         # pad with zeroes to example with less than 100 chars
-        in_seqs[-1] = in_seqs[-1] + ([0] * n_chars_missed)
-        out_seqs[-1] = out_seqs[-1] + ([0] * n_chars_missed)
+        in_seqs[-1] = in_seqs[-1] + (['[UNK]'] * n_chars_missed)
+        out_seqs[-1] = out_seqs[-1] + (['[UNK]'] * n_chars_missed)
 
-    return in_seqs, out_seqs
+    return char_to_idx(in_seqs), char_to_idx(out_seqs)
+
+
 
 
 
