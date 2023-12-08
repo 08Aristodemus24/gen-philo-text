@@ -245,6 +245,18 @@ def init_sequences_b(corpus: str, char_to_idx: dict, T_x: int):
 
     return char_to_idx(in_seqs), char_to_idx(out_seqs)
 
+def decode_predictions(pred_ids, idx_to_char):
+    """
+    decodes the predictions by inference model and converts
+    them into the full generated sentence itself
+    """
+    char_list = idx_to_char(pred_ids)
+    char_list = tf.reshape(char_list, shape=(-1,)).numpy()
+    joined_seq = b"".join(char_list)
+    final_seq = str(joined_seq, "utf-8")
+    
+    return final_seq
+
 
 
 

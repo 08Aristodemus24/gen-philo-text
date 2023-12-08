@@ -12,7 +12,8 @@ from tensorflow.keras.layers import (
     Reshape, 
     Embedding,
     Input,
-    BatchNormalization)
+    BatchNormalization,
+    Add)
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import L2
 from tensorflow.keras.losses import CategoricalCrossentropy as cce_loss
@@ -139,7 +140,6 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
         n_unique - 
         T_x -
     """
-
     # define shape of batch of inputs including 
     # hidden and cell states
     X = Input(shape=(T_x,), name='X')
@@ -202,6 +202,7 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
         dense_layer - 
         norm_layer - 
     """
+
     # retrieve number of unique chars from dense layer
     n_chars = dense_layer.units
     n_a = lstm_cell.units
@@ -214,32 +215,47 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
     dense_mask_vector = tf.reshape(tf.sparse.to_dense(sparse_mask_vector), shape=(1, -1))
     print(dense_mask_vector)
 
+    # declare also an add layer for adding the mask 
+    # vector to the predicted logits
+    add_layer = Add(name='add-layer')
+
+    # and after the add layer pass the masked logits 
+    # to the activation layer
+    out_layer = Activation(activation=tf.nn.softmax)
+
+    # add reshape layer after the using tf.argmax 
+    # for the activation values
+    reshape_layer = Reshape(target_shape=(1,))
+
     # define shape of batch of inputs including hidden and cell 
     # states. Note in the prediction stage X will only be a (1, 1)
     # input representing one example and 1 timestep
-    X = Input(shape=(1,))
+    x_1 = Input(shape=(1,))
     h_0 = Input(shape=(n_a,), name='init_hidden_state')
     c_0 = Input(shape=(n_a,), name='init_cell_state')
-
-    idx = -1
 
     # a flag that represents how many newlines we have left before
     # sequence generation stops
     num_newlines = 2
 
-    # extract learned embeddings from embedding matrix.
-    # once (1, 1) input is fed output embeddings will now be 
-    # (1, 1, 32) 32 can be variable depending on the initially 
-    # set number of features during training
-    x_t = char_emb_layer(X)
+    # assign hidden and cell states
+    x_t = x_1
     h = h_0
     c = c_0
 
+    # will store all (1, 1) predicted ids
+    output_ids = []
     i = 0
-    while num_newlines != 0 and i != T_x:
+    while i < T_x:
+        # extract learned embeddings from embedding matrix.
+        # once (1, 1) input is fed output embeddings will now be 
+        # (1, 1, 32) 32 can be variable depending on the initially 
+        # set number of features during training
+        embedding = char_emb_layer(x_t)
+
         # since embedding x_t is already a (1, 1, 32) input
         # we can feed it directly to our lstm_cell
-        states = lstm_cell(inputs=x_t, initial_state=[h, c])
+        states = lstm_cell(inputs=embedding, initial_state=[h, c])
         _, h, c = states
 
         # pass the hidden state to the dense 
@@ -247,9 +263,32 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
         z_t = dense_layer(h)
         z_t = norm_layer(z_t)
 
-        # because tensor after norm layer is (1, 57) for example should
-        # our n unique chars be 57, we must also have our mask tensor to
-        # be of the same shape
+        # because tensor after norm layer is (1, 57) for example 
+        # should our n unique chars be 57, we must also have our
+        # mask tensor to be of the same shape
+        z_t = add_layer([z_t, dense_mask_vector])
+
+        # pass the the final logits to the activation 
+        # which have output shape (1, 57)
+        out = out_layer(z_t)
+        pred_id = tf.argmax(out, axis=1)
+
+        # since after argmax the output shape will be (1,)
+        # denoting one example with 1 id we can reshape it to be (1, 1)
+        # in order for us to pass it again to the embedding layer
+        pred_id = reshape_layer(pred_id)
+
+        # re assign x_t to newly predicted id to pass 
+        # in next timestep
+        x_t = pred_id
+        
+        # append predicted id to output array
+        output_ids.append(pred_id)
+
+        i += 1
+
+    return Model(inputs=[x_1, h_0, c_0], outputs=output_ids)
+
         
 
 
@@ -257,7 +296,7 @@ if __name__ == "__main__":
     # (m, T_x, n_features)
     m = 100
     T_x = 50
-    n_unique = 26
+    n_unique = 57
     n_a = 128
     emb_dim = 32
     X = np.random.randint(0, n_unique, size=(m, T_x))
@@ -280,19 +319,20 @@ if __name__ == "__main__":
     metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
 
     # instantiate custom model
-    model = GenPhiloText(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    # model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x)
     # model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x)
-    # model = load_alt_model_b(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    model = load_alt_model_b(n_a=n_a, n_unique=n_unique, T_x=T_x)
 
     # compile 
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    # model.summary()
+    # model([X, h_0, c_0])
+    model.summary()
 
     # train
     model.fit([X, h_0, c_0], Y, epochs=100, verbose=2)
     
     # save model
-    model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
+    # model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
     # model.save('../saved/models/test_model_a.h5', save_format='h5')
-    # model.save('../saved/models/test_model_b.h5', save_format='h5')
+    model.save('../saved/models/test_model_b.h5', save_format='h5')
     
