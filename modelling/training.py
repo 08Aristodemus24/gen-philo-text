@@ -70,8 +70,8 @@ if __name__ == "__main__":
         model.compile(loss=loss, optimizer=opt, metrics=metrics)
 
         # define checkpoint callback to save best weights at each epoch
-        weights_path = "./saved/weights/gen_philo_text_{epoch:02d}.h5"
-        checkpoint = ModelCheckpoint(weights_path, monitor='categorical_accuracy', verbose=1, save_best_only=True, save_weights_only=True, mode='max')
+        weights_path = "./saved/weights/gen_philo_text_{epoch:02d}_{loss:.4f}.h5"
+        checkpoint = ModelCheckpoint(weights_path, monitor='loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
         callbacks = [checkpoint]
 
         # being training model
