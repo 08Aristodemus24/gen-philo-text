@@ -8,7 +8,7 @@ from tensorflow.keras.losses import CategoricalCrossentropy as cce_loss
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.metrics import CategoricalAccuracy, CategoricalCrossentropy as cce_metric
 
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow as tf
 
 import numpy as np
@@ -18,6 +18,7 @@ if __name__ == "__main__":
     try:
         # instantiate parser to take args from user in command line
         parser = ArgumentParser()
+        parser.add_argument('-d', type=str, default="shakespeare", help="what text dataset/corpus to train model on")
         parser.add_argument('--emb_dim', type=int, default=32, help='number of features to use in character embedding matrix/lookup')
         parser.add_argument('-n_a', type=int, default=128, help='number of units in an LSTM cell')
         parser.add_argument('-T_x', type=int, default=50, help='length (+ 1) of each partitioned sequence in the corpus')
@@ -25,13 +26,10 @@ if __name__ == "__main__":
         parser.add_argument('--batch_size', type=int, default=128, help='batch size during training')
         parser.add_argument('--alpha', type=float, default=1e-4, help='learning rate of optimizers')
         parser.add_argument('--n_epochs', type=int, default=300, help='the number of epochs')
-
         args = parser.parse_args()
-        print(args.dense_layers_dims)
-        print(args.T_x)
 
         # load data and pass through preprocessing pipeline
-        corpus = load_file('./data/notes.txt')
+        corpus = load_file(f'./data/{args.d}.txt')
         corpus = preprocess(corpus)
         chars = get_chars(corpus)
         char_to_idx = map_value_to_index(chars)
@@ -42,8 +40,6 @@ if __name__ == "__main__":
 
         # create dataset X and Y which will have shapes (m, T_x) 
         # and (T_y, m, n_unique) respectively
-        
-        
         X, Y = init_sequences_b(corpus, char_to_idx, T_x=args.T_x)    
         Y = [tf.one_hot(y, depth=n_unique) for y in tf.reshape(Y, shape=(-1, Y.shape[0]))]
 
@@ -52,7 +48,7 @@ if __name__ == "__main__":
         m = X.shape[0]
         h_0 = np.zeros(shape=(m, args.n_a))
         c_0 = np.zeros(shape=(m, args.n_a))
-        
+        print(f"number of examples: {m}")
         print("sequence creation successful")
 
         # define sample inputs and load model
@@ -69,21 +65,24 @@ if __name__ == "__main__":
         metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
         model.compile(loss=loss, optimizer=opt, metrics=metrics)
 
-        # define checkpoint callback to save best weights at each epoch
-        weights_path = "./saved/weights/gen_philo_text_{epoch:02d}_{loss:.4f}.h5"
-        checkpoint = ModelCheckpoint(weights_path, monitor='loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
-        callbacks = [checkpoint]
+        # define checkpoint and early stopping callback to save
+        # best weights at each epoch and to stop if there is no improvement
+        # of validation loss for 10 consecutive epochs
+        weights_path = f"./saved/weights/{args.d}_gen_philo_text" + "_{epoch:02d}_{val_loss:.4f}.h5"
+        checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
+        stopper = EarlyStopping(monitor='val_loss', patience=10)
+        callbacks = [checkpoint, stopper]
 
         # being training model
         print("commencing model training...\n")
         history = model.fit([X, h_0, c_0], Y, 
             epochs=args.n_epochs, 
             batch_size=args.batch_size, 
-            callbacks=callbacks)
+            callbacks=callbacks,
+            validation_split=0.3)
         
         # export png iamge of results
-        export_results(history, ['loss'], image_only=False)
-        export_results(history, ['categorical_accuracy'], image_only=False)
+        export_results(history, ['loss', 'val_loss'], image_only=False)
 
 
     except ValueError as e:
