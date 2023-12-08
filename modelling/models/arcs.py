@@ -1,5 +1,4 @@
 # model architecture will be defined here
-
 import tensorflow as tf
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras import Model, Sequential
@@ -25,24 +24,25 @@ import numpy as np
 
 @tf.keras.utils.register_keras_serializable()
 class GenPhiloText(tf.keras.Model):
-    def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, **kwargs):
+    def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26], **kwargs):
         super(GenPhiloText, self).__init__(**kwargs)
         self.emb_dim = emb_dim
         self.n_a = n_a
         self.n_unique = n_unique
+        self.dense_layers_dims = dense_layers_dims
 
         # number of time steps or length of longest sequences/training example
         self.n_time_steps = T_x
+        self.n_dense_layers = len(dense_layers_dims)
 
         # instantiate layers
         self.char_emb_layer = Embedding(n_unique, emb_dim, name='char-emb-layer')
         self.lstm_cell = LSTM(units=n_a, return_state=True, name='lstm-cell')
-        self.dense_layer = Dense(units=n_unique, name='dense-layer')
-        self.out_layer = Activation(activation=tf.nn.softmax)
+        self.dense_layers = [Dense(units=dim, name=f'dense-layer-{i}') for i, dim, in enumerate(dense_layers_dims)]
         
         # utility layers
         self.reshape_layer = Reshape(target_shape=(1, emb_dim), name='reshape-layer')
-        self.norm_layer = BatchNormalization(name='norm-layer')
+        self.norm_layers = [BatchNormalization(name=f'norm-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
 
     def call(self, inputs):
         # get batch of training examples, hidden state, and cell 
@@ -80,11 +80,12 @@ class GenPhiloText(tf.keras.Model):
             states = self.lstm_cell(inputs=x_t, initial_state=[h, c])
             _, h, c = states
 
-
-            # pass final hidden state to the dense layer
-            # pass the hidden state to the dense layer
-            z_t = self.dense_layer(h)
-            z_t = self.norm_layer(z_t)
+            # pass final hidden state to n dense layers
+            z_t = h
+            for i in range(self.n_dense_layers - 1):
+                z_t = self.dense_layers[i](z_t)
+                z_t = self.norm_layers[i](z_t)
+            z_t = self.dense_layers[-1](z_t)
 
             # when all outputs are collected this will 
             # have dimensionality (T_y, m, n_unique)
@@ -98,6 +99,7 @@ class GenPhiloText(tf.keras.Model):
         config['n_a'] = self.n_a
         config['n_unique'] = self.n_unique
         config['T_x'] = self.n_time_steps
+        config['dense_layers_dims'] = self.dense_layers_dims
 
         return config
 
@@ -132,7 +134,7 @@ def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
 
     return model
 
-def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
+def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26]):
     """
     args:
         emb_dim -
@@ -140,6 +142,8 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
         n_unique - 
         T_x -
     """
+    n_dense_layers = len(dense_layers_dims)
+
     # define shape of batch of inputs including 
     # hidden and cell states
     X = Input(shape=(T_x,), name='X')
@@ -156,8 +160,8 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
     # constantly changing
     reshape_layer = Reshape(target_shape=(1, emb_dim), name='reshape-layer')
     lstm_cell = LSTM(units=n_a, return_state=True, name='lstm-cell')
-    dense_layer = Dense(units=n_unique, name='dense-layer')
-    norm_layer = BatchNormalization(name='norm-layer')
+    dense_layers = [Dense(units=dim, name=f'dense-layer-{i}') for i, dim in enumerate(dense_layers_dims)]
+    norm_layers = [BatchNormalization(name=f'norm-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
 
     # initialize hidden and cell states
     h = h_0
@@ -187,14 +191,17 @@ def load_alt_model_b(n_unique, T_x, emb_dim=32, n_a=128):
 
         # pass the hidden state to the dense 
         # layer and then normalize after
-        z_t = dense_layer(h)
-        z_t = norm_layer(z_t)
+        z_t = h
+        for i in range(n_dense_layers - 1):
+            z_t = dense_layers[i](z_t)
+            z_t = norm_layers[i](z_t)
+        z_t = dense_layers[-1](z_t)
 
         out_logits.append(z_t)
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_idx, T_x: int=100, chars_to_skip: list=['[UNK]']):
+def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list, char_to_idx, T_x: int=100, chars_to_skip: list=['[UNK]']):
     """
     args:
         char_emb_layer - 
@@ -204,7 +211,8 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
     """
 
     # retrieve number of unique chars from dense layer
-    n_chars = dense_layer.units
+    n_dense_layers = len(dense_layers)
+    n_chars = dense_layers[-1].units
     n_a = lstm_cell.units
     print(n_chars)
     print(n_a)
@@ -243,10 +251,11 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
     h = h_0
     c = c_0
 
+    print(T_x)
     # will store all (1, 1) predicted ids
     output_ids = []
-    i = 0
-    while i < T_x:
+    index = 0
+    while index < T_x:
         # extract learned embeddings from embedding matrix.
         # once (1, 1) input is fed output embeddings will now be 
         # (1, 1, 32) 32 can be variable depending on the initially 
@@ -260,8 +269,11 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
 
         # pass the hidden state to the dense 
         # layer and then normalize after
-        z_t = dense_layer(h)
-        z_t = norm_layer(z_t)
+        z_t = h
+        for i in range(n_dense_layers - 1):
+            z_t = dense_layers[i](z_t)
+            z_t = norm_layers[i](z_t)
+        z_t = dense_layers[-1](z_t)
 
         # because tensor after norm layer is (1, 57) for example 
         # should our n unique chars be 57, we must also have our
@@ -285,7 +297,8 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layer, norm_layer, char_to_i
         # append predicted id to output array
         output_ids.append(pred_id)
 
-        i += 1
+        print(index)
+        index += 1
 
     return Model(inputs=[x_1, h_0, c_0], outputs=output_ids)
 
@@ -319,20 +332,18 @@ if __name__ == "__main__":
     metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
 
     # instantiate custom model
-    # model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x)
-    # model = load_alt_model_a(n_a=n_a, n_unique=n_unique, T_x=T_x)
-    model = load_alt_model_b(n_a=n_a, n_unique=n_unique, T_x=T_x)
+    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=[64, 32, n_unique])
+    # model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=[64, 32, n_unique])
 
     # compile 
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    # model([X, h_0, c_0])
+    model([X, h_0, c_0])
     model.summary()
 
     # train
     model.fit([X, h_0, c_0], Y, epochs=100, verbose=2)
     
     # save model
-    # model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
-    # model.save('../saved/models/test_model_a.h5', save_format='h5')
-    model.save('../saved/models/test_model_b.h5', save_format='h5')
+    model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
+    # model.save('../saved/models/test_model_b.h5', save_format='h5')
     

@@ -96,6 +96,15 @@ def preprocess(text_string: str):
 
     return temp
 
+def get_chars(corpus: str):
+    """
+    returns a list of all unique characters found
+    in given corpus
+    """
+    chars = sorted(list(set(corpus)))
+
+    return chars
+
 # def map_value_to_index(unique_ids, n_unique_ids, start, inverted=False):
 #     """
 #     returns a dictionary mapping each unique value to an integer. 
@@ -254,7 +263,7 @@ def decode_predictions(pred_ids, idx_to_char):
     char_list = tf.reshape(char_list, shape=(-1,)).numpy()
     joined_seq = b"".join(char_list)
     final_seq = str(joined_seq, "utf-8")
-    
+
     return final_seq
 
 
