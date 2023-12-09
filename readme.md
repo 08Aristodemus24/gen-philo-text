@@ -23,3 +23,7 @@ Your model is overfitting. There are a couple ways to deal with this:
 
 solution: in text generation models you can use other metrics other than accuracy such as bleu score or perplexity
 2. 
+
+# Running model training
+**To do:**
+1. python training.py -d notes --emb_dim 32 -n_a 64 -T_x 100 --dense_layers_dims 64 32 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --drop_prob 0.4 --n_epochs 100

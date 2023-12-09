@@ -319,7 +319,13 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
         x_t = pred_id
         
         # append predicted id to output array
-        output_ids.append(pred_id)
+        """THERE IS A BUG HERE BECAUSE INFERENCE KEEPS GENERATING SAME CHARACTERS"""
+
+        """SO THE PROBLEM IS THAT THE ACTIVATIONS ARE SO THE SAME THAT PROBABILITY
+        VECTOR GENERATED WHEN APPLIED AN ARGMAX ALWAYS RETURNS THE INDEX 2, INDEX 2
+        BEING THE POSITION OF THE VALUE OF THE HIGHEST PROBABILITY BUT WHY IS IT ONLY
+        AT INDEX 2?"""
+        output_ids.append(out)
 
         print(index)
         index += 1
@@ -331,7 +337,7 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
 if __name__ == "__main__":
     # hyperparameters
     m = 20000
-    T_x = 50
+    T_x = 100
     n_unique = 57
     n_a = 64
     emb_dim = 32

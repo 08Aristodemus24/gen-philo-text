@@ -25,7 +25,7 @@ if __name__ == "__main__":
         parser.add_argument('--dense_layers_dims', nargs='+', type=int, default=[64], help='number of layers and number of nodes in each dense layers of the language model')
         parser.add_argument('--batch_size', type=int, default=128, help='batch size during training')
         parser.add_argument('--alpha', type=float, default=1e-3, help='learning rate of optimizers')
-        parser.add_argument('--lambda', type=float, default=0.8, help='regularization constant during training')
+        parser.add_argument('--lambda_', type=float, default=0.8, help='regularization constant during training')
         parser.add_argument('--drop_prob', type=float, default=0.4, help='percentage at which to drop nodes before next dense layer')
         parser.add_argument('--n_epochs', type=int, default=100, help='the number of epochs')
         args = parser.parse_args()
@@ -42,57 +42,59 @@ if __name__ == "__main__":
 
         # create dataset X and Y which will have shapes (m, T_x) 
         # and (T_y, m, n_unique) respectively
-        X, Y = init_sequences_b(corpus, char_to_idx, T_x=args.T_x)    
+        X, Y = init_sequences_b(corpus, char_to_idx, T_x=args.T_x)
+        print(X[:5, :])
+        print(Y[:5, :])
         Y = [tf.one_hot(y, depth=n_unique) for y in tf.reshape(Y, shape=(-1, Y.shape[0]))]
 
-        # get also number of examples created in init_sequences_b()
-        # and initialize hidden and cell states to shape (m, n_units)
-        m = X.shape[0]
-        h_0 = np.zeros(shape=(m, args.n_a))
-        c_0 = np.zeros(shape=(m, args.n_a))
-        print(f"number of examples: {m}")
-        print("sequence creation successful")
+        # # get also number of examples created in init_sequences_b()
+        # # and initialize hidden and cell states to shape (m, n_units)
+        # m = X.shape[0]
+        # h_0 = np.zeros(shape=(m, args.n_a))
+        # c_0 = np.zeros(shape=(m, args.n_a))
+        # print(f"number of examples: {m}")
+        # print("sequence creation successful")
 
-        # define sample inputs and load model
-        sample_input = tf.random.uniform(shape=(1, args.T_x), minval=0, maxval=n_unique - 1, dtype=tf.int32)
-        sample_h = tf.zeros(shape=(1, args.n_a))
-        sample_c = tf.zeros(shape=(1, args.n_a))
-        model = GenPhiloText(
-            emb_dim=args.emb_dim, 
-            n_a=args.n_a, 
-            n_unique=n_unique, 
-            T_x=args.T_x, 
-            dense_layers_dims=args.dense_layers_dims + [n_unique], 
-            lambda_=args.lambda_, 
-            drop_prob=args.drop_prob)
-        model([sample_input, sample_h, sample_c])
-        print(model.summary(), end='\n')
+        # # define sample inputs and load model
+        # sample_input = tf.random.uniform(shape=(1, args.T_x), minval=0, maxval=n_unique - 1, dtype=tf.int32)
+        # sample_h = tf.zeros(shape=(1, args.n_a))
+        # sample_c = tf.zeros(shape=(1, args.n_a))
+        # model = GenPhiloText(
+        #     emb_dim=args.emb_dim, 
+        #     n_a=args.n_a, 
+        #     n_unique=n_unique, 
+        #     T_x=args.T_x, 
+        #     dense_layers_dims=args.dense_layers_dims + [n_unique], 
+        #     lambda_=args.lambda_, 
+        #     drop_prob=args.drop_prob)
+        # model([sample_input, sample_h, sample_c])
+        # print(model.summary(), end='\n')
 
-        # define loss, optimizer, and metrics and compile
-        opt = Adam(learning_rate=args.alpha, beta_1=0.9, beta_2=0.999)
-        loss = cce_loss(from_logits=True)
-        metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
-        model.compile(loss=loss, optimizer=opt, metrics=metrics)
+        # # define loss, optimizer, and metrics and compile
+        # opt = Adam(learning_rate=args.alpha, beta_1=0.9, beta_2=0.999)
+        # loss = cce_loss(from_logits=True)
+        # metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
+        # model.compile(loss=loss, optimizer=opt, metrics=metrics)
 
-        # define checkpoint and early stopping callback to save
-        # best weights at each epoch and to stop if there is no improvement
-        # of validation loss for 10 consecutive epochs
-        weights_path = f"./saved/weights/{args.d}_gen_philo_text" + "_{epoch:02d}_{val_loss:.4f}.h5"
-        checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
-        stopper = EarlyStopping(monitor='val_loss', patience=10)
-        callbacks = [checkpoint, stopper]
+        # # define checkpoint and early stopping callback to save
+        # # best weights at each epoch and to stop if there is no improvement
+        # # of validation loss for 10 consecutive epochs
+        # weights_path = f"./saved/weights/{args.d}_gen_philo_text" + "_{epoch:02d}_{val_loss:.4f}.h5"
+        # checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
+        # stopper = EarlyStopping(monitor='val_loss', patience=10)
+        # callbacks = [checkpoint, stopper]
 
-        # being training model
-        print("commencing model training...\n")
-        history = model.fit([X, h_0, c_0], Y, 
-            epochs=args.n_epochs, 
-            batch_size=args.batch_size, 
-            callbacks=callbacks,
-            validation_split=0.3,
-            verbose=2)
+        # # being training model
+        # print("commencing model training...\n")
+        # history = model.fit([X, h_0, c_0], Y, 
+        #     epochs=args.n_epochs, 
+        #     batch_size=args.batch_size, 
+        #     callbacks=callbacks,
+        #     validation_split=0.3,
+        #     verbose=2)
         
-        # export png iamge of results
-        export_results(history, ['loss', 'val_loss'], image_only=False)
+        # # export png iamge of results
+        # export_results(history, ['loss', 'val_loss'], image_only=False)
 
 
     except ValueError as e:
