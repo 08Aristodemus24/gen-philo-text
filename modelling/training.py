@@ -20,11 +20,13 @@ if __name__ == "__main__":
         parser = ArgumentParser()
         parser.add_argument('-d', type=str, default="shakespeare", help="what text dataset/corpus to train model on")
         parser.add_argument('--emb_dim', type=int, default=32, help='number of features to use in character embedding matrix/lookup')
-        parser.add_argument('-n_a', type=int, default=128, help='number of units in an LSTM cell')
-        parser.add_argument('-T_x', type=int, default=50, help='length (+ 1) of each partitioned sequence in the corpus')
+        parser.add_argument('-n_a', type=int, default=64, help='number of units in an LSTM cell')
+        parser.add_argument('-T_x', type=int, default=100, help='length (+ 1) of each partitioned sequence in the corpus')
         parser.add_argument('--dense_layers_dims', nargs='+', type=int, default=[64], help='number of layers and number of nodes in each dense layers of the language model')
         parser.add_argument('--batch_size', type=int, default=128, help='batch size during training')
-        parser.add_argument('--alpha', type=float, default=1e-4, help='learning rate of optimizers')
+        parser.add_argument('--alpha', type=float, default=1e-3, help='learning rate of optimizers')
+        parser.add_argument('--lambda', type=float, default=0.8, help='regularization constant during training')
+        parser.add_argument('--drop_prob', type=float, default=0.4, help='percentage at which to drop nodes before next dense layer')
         parser.add_argument('--n_epochs', type=int, default=100, help='the number of epochs')
         args = parser.parse_args()
 
@@ -55,7 +57,14 @@ if __name__ == "__main__":
         sample_input = tf.random.uniform(shape=(1, args.T_x), minval=0, maxval=n_unique - 1, dtype=tf.int32)
         sample_h = tf.zeros(shape=(1, args.n_a))
         sample_c = tf.zeros(shape=(1, args.n_a))
-        model = GenPhiloText(emb_dim=args.emb_dim, n_a=args.n_a, n_unique=n_unique, T_x=args.T_x, dense_layers_dims=args.dense_layers_dims + [n_unique])
+        model = GenPhiloText(
+            emb_dim=args.emb_dim, 
+            n_a=args.n_a, 
+            n_unique=n_unique, 
+            T_x=args.T_x, 
+            dense_layers_dims=args.dense_layers_dims + [n_unique], 
+            lambda_=args.lambda_, 
+            drop_prob=args.drop_prob)
         model([sample_input, sample_h, sample_c])
         print(model.summary(), end='\n')
 

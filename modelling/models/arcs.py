@@ -41,7 +41,7 @@ class GenPhiloText(tf.keras.Model):
         # instantiate layers
         self.char_emb_layer = Embedding(n_unique, emb_dim, name='char-emb-layer', embeddings_regularizer=L2(lambda_))
         self.lstm_cell = LSTM(units=n_a, return_state=True, name='lstm-cell')
-        self.dense_layers = [Dense(units=dim, name=f'dense-layer-{i}') for i, dim, in enumerate(dense_layers_dims)]
+        self.dense_layers = [Dense(units=dim, name=f'dense-layer-{i}', kernel_regularizer=L2(lambda_)) for i, dim, in enumerate(dense_layers_dims)]
         self.norm_layers = [BatchNormalization(name=f'norm-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
         self.act_layers = [Activation(activation=tf.nn.relu, name=f'act-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
         self.drop_layers = [Dropout(drop_prob, name=f'drop-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
@@ -175,7 +175,7 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
     # constantly changing
     reshape_layer = Reshape(target_shape=(1, emb_dim), name='reshape-layer')
     lstm_cell = LSTM(units=n_a, return_state=True, name='lstm-cell')
-    dense_layers = [Dense(units=dim, name=f'dense-layer-{i}') for i, dim in enumerate(dense_layers_dims)]
+    dense_layers = [Dense(units=dim, name=f'dense-layer-{i}', kernel_regularizer=L2(lambda_)) for i, dim in enumerate(dense_layers_dims)]
     norm_layers = [BatchNormalization(name=f'norm-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
     act_layers = [Activation(activation=tf.nn.relu, name=f'act-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
     drop_layers = [Dropout(drop_prob, name=f'drop-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
@@ -329,12 +329,20 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
         
 
 if __name__ == "__main__":
-    # (m, T_x, n_features)
+    # hyperparameters
     m = 20000
     T_x = 50
     n_unique = 57
-    n_a = 128
+    n_a = 64
     emb_dim = 32
+    dense_layers_dims = [64, 32, n_unique]
+    lambda_ = 0.8
+    drop_prob = 0.4
+    learning_rate = 1e-3
+    epochs = 100
+    batch_size = 512
+
+    # note X becomes (m, T_x, n_features) when fed to embedding layer
     X = np.random.randint(0, n_unique, size=(m, T_x))
 
     # we have to match the output of the prediction of our 
@@ -351,11 +359,11 @@ if __name__ == "__main__":
     c_0 = np.zeros(shape=(m, n_a))
 
     # instantiate custom model
-    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=[64, 32, n_unique], lambda_=0.8, drop_prob=0.3)
+    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob)
     # model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=[64, 32, n_unique])
 
     # define loss, optimizer, and metrics then compile
-    opt = Adam(learning_rate=0.001, beta_1=0.9, beta_2=0.999)
+    opt = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.999)
     loss = cce_loss(from_logits=True)
     metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]    
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
@@ -365,20 +373,20 @@ if __name__ == "__main__":
     # define checkpoint and early stopping callback to save
     # best weights at each epoch and to stop if there is no improvement
     # of validation loss for 10 consecutive epochs
-    weights_path = f"./saved/weights/test_gen_philo_text" + "_{epoch:02d}_{val_loss:.4f}.h5"
+    weights_path = "../saved/weights/test_gen_philo_text_{epoch:02d}_{val_loss:.4f}.h5"
     checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
     stopper = EarlyStopping(monitor='val_loss', patience=10)
     callbacks = [checkpoint, stopper]
 
     # begin training test model
     history = model.fit([X, h_0, c_0], Y, 
-        epochs=100,
-        batch_size=512, 
+        epochs=epochs,
+        batch_size=batch_size, 
         callbacks=callbacks,
         validation_split=0.3,
         verbose=2,)
     
     # save model
-    model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
+    # model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
     # model.save('../saved/models/test_model_b.h5', save_format='h5')
     
