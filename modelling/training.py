@@ -25,7 +25,7 @@ if __name__ == "__main__":
         parser.add_argument('--dense_layers_dims', nargs='+', type=int, default=[64], help='number of layers and number of nodes in each dense layers of the language model')
         parser.add_argument('--batch_size', type=int, default=128, help='batch size during training')
         parser.add_argument('--alpha', type=float, default=1e-4, help='learning rate of optimizers')
-        parser.add_argument('--n_epochs', type=int, default=300, help='the number of epochs')
+        parser.add_argument('--n_epochs', type=int, default=100, help='the number of epochs')
         args = parser.parse_args()
 
         # load data and pass through preprocessing pipeline
@@ -79,7 +79,8 @@ if __name__ == "__main__":
             epochs=args.n_epochs, 
             batch_size=args.batch_size, 
             callbacks=callbacks,
-            validation_split=0.3)
+            validation_split=0.3,
+            verbose=2)
         
         # export png iamge of results
         export_results(history, ['loss', 'val_loss'], image_only=False)
