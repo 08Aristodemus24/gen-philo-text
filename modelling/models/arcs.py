@@ -25,7 +25,7 @@ import numpy as np
 
 @tf.keras.utils.register_keras_serializable()
 class GenPhiloText(tf.keras.Model):
-    def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26], lambda_=1, drop_prob=0.0, **kwargs):
+    def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26], lambda_=1, drop_prob=0.0, normalize=False, **kwargs):
         super(GenPhiloText, self).__init__(**kwargs)
         self.emb_dim = emb_dim
         self.n_a = n_a
@@ -37,6 +37,7 @@ class GenPhiloText(tf.keras.Model):
         # number of time steps or length of longest sequences/training example
         self.n_time_steps = T_x
         self.n_dense_layers = len(dense_layers_dims)
+        self.normalize = normalize
 
         # instantiate layers
         self.char_emb_layer = Embedding(n_unique, emb_dim, name='char-emb-layer', embeddings_regularizer=L2(lambda_))
@@ -69,8 +70,6 @@ class GenPhiloText(tf.keras.Model):
 
         # loop over each timestep
         for t in range(self.n_time_steps):
-            
-
             # from here get slice of the embeddings such that shape 
             # goes from (m, T_x, n_features) to (m, n_features), 
             # since we are taking a single matrix from a single time step
@@ -89,7 +88,12 @@ class GenPhiloText(tf.keras.Model):
             temp = h
             for i in range(self.n_dense_layers - 1):
                 temp = self.dense_layers[i](temp)
-                temp = self.norm_layers[i](temp)
+                
+                # if normalize is false do not permit passing temp 
+                # to batch normalization layer
+                if self.normalize == True:
+                    temp = self.norm_layers[i](temp)
+
                 temp = self.act_layers[i](temp)
 
                 # only pass the activation to dropout during training
@@ -115,6 +119,7 @@ class GenPhiloText(tf.keras.Model):
         config['dense_layers_dims'] = self.dense_layers_dims
         config['lambda_'] = self.lambda_
         config['drop_prob'] = self.drop_prob
+        config['normalize'] = self.normalize
 
         return config
 
@@ -128,28 +133,22 @@ def load_alt_model_a(n_unique, T_x, emb_dim=32, n_a=128):
     """
 
     # instantiate sequential model
-    model = Sequential()
 
     # (m, T_x)
-    model.add(Input(shape=(T_x, )))
+    X = Input(shape=(T_x, ))
 
     # (m, T_x, n_unique)
-    model.add(Embedding(n_unique, emb_dim))
+    embeddings = Embedding(n_unique, emb_dim)(X)
 
     # (m, T_x, n_a)
-    model.add(LSTM(units=n_a, return_sequences=True))
-
-    # (m, n_a)
-    model.add(LSTM(units=n_a, return_sequences=False))
+    h1, h2, c = LSTM(units=n_a, return_sequences=True, return_state=True)(embeddings)
 
     # (m, n_unique)
-    model.add(Dense(units=n_unique))
-    model.add(BatchNormalization())
-    model.add(Activation(activation=tf.nn.softmax))
+    logits = Dense(units=n_unique)(h1)
 
-    return model
+    return Model(inputs=X, outputs=logits)
 
-def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26], lambda_=1, drop_prob=0.0):
+def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26], lambda_=1, drop_prob=0.0, normalize=False):
     """
     args:
         emb_dim -
@@ -211,7 +210,12 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
         temp = h
         for i in range(n_dense_layers - 1):
             temp = dense_layers[i](temp)
-            temp = norm_layers[i](temp)
+
+            # if normalize is false permit passing temp 
+            # to batch normalization layer
+            if normalize == True:
+                temp = norm_layers[i](temp)
+
             temp = act_layers[i](temp)
             temp = drop_layers[i](temp)
             
@@ -341,12 +345,13 @@ if __name__ == "__main__":
     n_unique = 57
     n_a = 64
     emb_dim = 32
-    dense_layers_dims = [64, 32, n_unique]
+    dense_layers_dims = [n_unique]
     lambda_ = 0.8
     drop_prob = 0.4
     learning_rate = 1e-3
     epochs = 100
     batch_size = 512
+    normalize = False
 
     # note X becomes (m, T_x, n_features) when fed to embedding layer
     X = np.random.randint(0, n_unique, size=(m, T_x))
@@ -365,8 +370,9 @@ if __name__ == "__main__":
     c_0 = np.zeros(shape=(m, n_a))
 
     # instantiate custom model
-    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob)
-    # model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=[64, 32, n_unique])
+    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
+    # model = load_alt_model_a(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x)
+    # model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
 
     # define loss, optimizer, and metrics then compile
     opt = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.999)
