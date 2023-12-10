@@ -225,7 +225,7 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list, char_to_idx, T_x: int=100, chars_to_skip: list=['[UNK]']):
+def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]']):
     """
     args:
         char_emb_layer - 
@@ -298,7 +298,9 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
         temp = h
         for i in range(n_dense_layers - 1):
             temp = dense_layers[i](temp)
-            temp = norm_layers[i](temp)
+
+            if norm_layers == None:
+                temp = norm_layers[i](temp)
             temp = act_layers[i](temp)
 
         z_t = dense_layers[-1](temp)
@@ -329,7 +331,7 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
         VECTOR GENERATED WHEN APPLIED AN ARGMAX ALWAYS RETURNS THE INDEX 2, INDEX 2
         BEING THE POSITION OF THE VALUE OF THE HIGHEST PROBABILITY BUT WHY IS IT ONLY
         AT INDEX 2?"""
-        output_ids.append(out)
+        output_ids.append(pred_id)
 
         print(index)
         index += 1
@@ -370,22 +372,22 @@ if __name__ == "__main__":
     c_0 = np.zeros(shape=(m, n_a))
 
     # instantiate custom model
-    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
+    # model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
     # model = load_alt_model_a(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x)
-    # model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
+    model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
 
     # define loss, optimizer, and metrics then compile
     opt = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.999)
     loss = cce_loss(from_logits=True)
     metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]    
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    model([X, h_0, c_0])
+    # model([X, h_0, c_0])
     model.summary()
 
     # define checkpoint and early stopping callback to save
     # best weights at each epoch and to stop if there is no improvement
     # of validation loss for 10 consecutive epochs
-    weights_path = "../saved/weights/test_gen_philo_text_{epoch:02d}_{val_loss:.4f}.h5"
+    weights_path = "../saved/weights/test_alt_model_b_{epoch:02d}_{val_loss:.4f}.h5"
     checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
     stopper = EarlyStopping(monitor='val_loss', patience=10)
     callbacks = [checkpoint, stopper]
