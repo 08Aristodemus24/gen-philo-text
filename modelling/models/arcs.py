@@ -301,6 +301,7 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
 
             if norm_layers == None:
                 temp = norm_layers[i](temp)
+                
             temp = act_layers[i](temp)
 
         z_t = dense_layers[-1](temp)
