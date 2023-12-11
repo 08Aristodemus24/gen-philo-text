@@ -42,11 +42,10 @@ if __name__ == "__main__":
         n_unique = len(char_to_idx.get_vocabulary())
 
         # create dataset X and Y which will have shapes (m, T_x) 
-        # and (T_y, m, n_unique) respectively
+        # and (m, T_y, n_unique) respectively
         X, Y = init_sequences_b(corpus, char_to_idx, T_x=args.T_x)
-        print(X[:5, :])
-        print(Y[:5, :])
-        Y = [tf.one_hot(y, depth=n_unique) for y in tf.reshape(Y, shape=(-1, Y.shape[0]))]
+        Y = tf.transpose(tf.one_hot(Y, depth=n_unique, axis=1), perm=[0, 2, 1])
+        # print(Y)
 
         # get also number of examples created in init_sequences_b()
         # and initialize hidden and cell states to shape (m, n_units)

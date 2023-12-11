@@ -32,4 +32,7 @@ solution: in text generation models you can use other metrics other than accurac
 
 # Running model training
 **To do:**
-1. python training.py -d notes --emb_dim 32 -n_a 64 -T_x 100 --dense_layers_dims 64 32 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --drop_prob 0.4 --n_epochs 100
+1. training parameters
+python training.py -d notes --emb_dim 32 -n_a 64 -T_x 100 --dense_layers_dims 64 32 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --drop_prob 0.4 --n_epochs 100
+
+python training.py -d notes --emb_dim 256 -n_a 512 -T_x 100 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --n_epochs 30

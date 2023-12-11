@@ -75,8 +75,9 @@ class GenPhiloText(tf.keras.Model):
             # since we are taking a single matrix from a single time step
             x_t = embeddings[:, t, :]
 
-            # because each timestep takes in a (m, 1, n_unique)
+            # because each timestep takes in a (m, 1, n_features)
             # input we must reshape our input x at timestep t
+            # from (m, n_features) to (m, 1, n_features)
             x_t = self.reshape_layer(x_t)
 
             # pass the input x to the LSTM cell as well as the 
@@ -107,6 +108,10 @@ class GenPhiloText(tf.keras.Model):
             # when all outputs are collected this will 
             # have dimensionality (T_y, m, n_unique)
             out_logits.append(out_logit)
+
+        # reshape the (T_y, m, n_unique) to (m, T_y, n_unique)
+        # by using tf.transpose(out_logits, perm=[1, 0, 2])
+        out_logits = tf.transpose(out_logits, perm=[1, 0, 2])
 
         return out_logits
     
@@ -370,23 +375,26 @@ if __name__ == "__main__":
 
     # one hot encode our dummy (T_y, m, n_unique) probabilities
     Y = [tf.one_hot(tf.argmax(y, axis=1), depth=n_unique) for y in Y]
-    print(Y)
+    
+    # test for computing loss with (m, T_y, n_unique) predictions
+    Y_true = tf.reshape(Y, shape=(m, T_x, n_unique))
+    dummy_logits = np.random.randn(m, T_x, n_unique)
+    loss = cce_loss(from_logits=True)(dummy_logits, Y_true)
+    print(f"computed test loss: {loss}")
 
     # initialize hidden and cell states to shape (m, n_units)
     h_0 = np.zeros(shape=(m, n_a))
     c_0 = np.zeros(shape=(m, n_a))
 
     # instantiate custom model
-    # model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
-    # model = load_alt_model_a(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x)
-    model = load_alt_model_b(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
+    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
 
     # define loss, optimizer, and metrics then compile
     opt = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.999)
     loss = cce_loss(from_logits=True)
     metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]    
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    # model([X, h_0, c_0])
+    model([X, h_0, c_0])
     model.summary()
 
     # define checkpoint and early stopping callback to save
@@ -398,7 +406,7 @@ if __name__ == "__main__":
     callbacks = [checkpoint, stopper]
 
     # begin training test model
-    history = model.fit([X, h_0, c_0], Y, 
+    history = model.fit([X, h_0, c_0], Y_true, 
         epochs=epochs,
         batch_size=batch_size, 
         callbacks=callbacks,
