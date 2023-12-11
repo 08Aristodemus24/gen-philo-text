@@ -225,7 +225,7 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]']):
+def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
     """
     args:
         char_emb_layer - 
@@ -304,36 +304,40 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
                 
             temp = act_layers[i](temp)
 
-        z_t = dense_layers[-1](temp)
+        z_t = dense_layers[-1](temp)    
 
         # because tensor after norm layer is (1, 57) for example 
         # should our n unique chars be 57, we must also have our
         # mask tensor to be of the same shape
-        z_t = add_layer([z_t, dense_mask_vector])
+        z_t = add_layer([z_t, dense_mask_vector]) / temperature
 
         # pass the the final logits to the activation 
         # which have output shape (1, 57)
         out = out_layer(z_t)
-        pred_id = tf.argmax(out, axis=1)
 
-        # since after argmax the output shape will be (1,)
-        # denoting one example with 1 id we can reshape it to be (1, 1)
-        # in order for us to pass it again to the embedding layer
-        pred_id = reshape_layer(pred_id)
+        # # this uses a greedy sample but may not be ideal in
+        # # generating diverse characters in the trained model
+        # pred_id = tf.argmax(out, axis=1)
+
+        # # since after argmax the output shape will be (1,)
+        # # denoting one example with 1 id we can reshape it to be (1, 1)
+        # # in order for us to pass it again to the embedding layer
+        # pred_id = reshape_layer(pred_id)
+
+        # alternative sampler uses the multinomial distribution
+        # to sample the probability values we have with slight
+        # randomness this returns a (1, 1) sampled index of 
+        # the character
+        pred_id = tf.random.categorical(out, num_samples=1)
 
         # re assign x_t to newly predicted id to pass 
         # in next timestep
         x_t = pred_id
         
         # append predicted id to output array
-        """THERE IS A BUG HERE BECAUSE INFERENCE KEEPS GENERATING SAME CHARACTERS"""
-
-        """SO THE PROBLEM IS THAT THE ACTIVATIONS ARE SO THE SAME THAT PROBABILITY
-        VECTOR GENERATED WHEN APPLIED AN ARGMAX ALWAYS RETURNS THE INDEX 2, INDEX 2
-        BEING THE POSITION OF THE VALUE OF THE HIGHEST PROBABILITY BUT WHY IS IT ONLY
-        AT INDEX 2?"""
         output_ids.append(pred_id)
 
+        # increment index to sample for next timestep
         print(index)
         index += 1
 
