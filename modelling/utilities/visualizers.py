@@ -7,7 +7,7 @@ import numpy as np
 
 
 
-def export_results(history, metrics_to_use=['loss', 
+def export_results(history, dataset_id, metrics_to_use=['loss', 
                                             'val_loss', 
                                             'binary_crossentropy', 
                                             'val_binary_crossentropy', 
@@ -36,8 +36,8 @@ def export_results(history, metrics_to_use=['loss',
             curr_metrics_indeces=metrics_indeces,
             epochs=history.epoch, 
             image_only=image_only,
-            img_title="generative models performance {}".format(
-                metrics_to_use[index],
+            img_title="{} generative models performance {}".format(
+                dataset_id, metrics_to_use[index],
             )
         )
 

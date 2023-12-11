@@ -96,7 +96,7 @@ if __name__ == "__main__":
             verbose=2)
         
         # export png iamge of results
-        export_results(history, ['loss', 'val_loss'], image_only=False)
+        export_results(history, args.d, ['loss', 'val_loss'], image_only=False)
 
 
     except ValueError as e:
