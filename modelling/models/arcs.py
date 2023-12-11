@@ -299,7 +299,7 @@ def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: l
         for i in range(n_dense_layers - 1):
             temp = dense_layers[i](temp)
 
-            if norm_layers == None:
+            if norm_layers != None:
                 temp = norm_layers[i](temp)
                 
             temp = act_layers[i](temp)

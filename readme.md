@@ -22,7 +22,13 @@ Your model is overfitting. There are a couple ways to deal with this:
 * Try suing Batch Normalization instead of Dropout. If you really want to use Dropout then using a value of 0.5 is too large a value for such a small data.
 
 solution: in text generation models you can use other metrics other than accuracy such as bleu score or perplexity
-2. 
+
+2. test model finally predicted more diverse characters although too diverse and without coherence, is it merely because of the random numbers the sampler uses, the temperature, or because the model has low quality data and has underfitted?
+
+* https://stackoverflow.com/questions/46924452/what-to-do-when-seq2seq-network-repeats-words-over-and-over-in-output/59407187#59407187
+* https://stackoverflow.com/questions/60605838/using-rnn-for-text-generation-it-always-predicts-the-same-letter/60764713#60764713
+
+
 
 # Running model training
 **To do:**
