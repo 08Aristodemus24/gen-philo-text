@@ -297,8 +297,34 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model_a():
-    pass
+def load_inf_model_a(model, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
+    """
+    args:
+        model - the model that was trained
+
+        char_to_idx - the lookup layer/table to map characters to
+        their respective indeces or id's
+
+        T_x - desired length of the generated text
+
+        chars_to_skip - a list representing the characters to skip so
+        that the model is prevented from generating any character that is 
+        a part of this list. Default is obviously the '[UNK]' character
+
+        temperature - a value that represents how much diversity should
+        the generative models text be allowed to have. A higher temp
+        would mean more creativity or diversity of characters generated.
+        A lower one would mean the opposite.
+    """
+    # get number of all unique chars including '[UNK]' char
+    n_chars = char_to_idx.get_vocabulary()
+
+    # ids to skip has shape (1, 1)
+    ids_to_skip = char_to_idx(chars_to_skip)[:, None]
+    sparse_mask_vector = tf.SparseTensor(values=[float('-inf')] * len(ids_to_skip), indices=ids_to_skip, dense_shape=[n_chars])
+    dense_mask_vector = tf.reshape(tf.sparse.to_dense(sparse_mask_vector), shape=(1, -1))
+
+
 
 def load_inf_model_b(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
     """
