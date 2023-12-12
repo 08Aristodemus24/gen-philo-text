@@ -219,7 +219,7 @@ def init_sequences_b(corpus: str, char_to_idx: dict, T_x: int):
     """
 
     if T_x == 0:
-        raise ValueError("sequence length T_x cannot be 0. Choose a value above 0.")
+        raise ValueError("You have entered an unpermitted value for the number of timesteps T_x. Sequence length T_x cannot be 0. Choose a value above 0.")
 
     # get total length of corpus
     total_len = len(corpus)

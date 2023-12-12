@@ -1,6 +1,4 @@
 # main model training here
-from models.arcs import GenPhiloTextA as Model
-# from models.arcs import GenPhiloTextB as Model
 from utilities.preprocessors import preprocess, get_chars, map_value_to_index, init_sequences_b, decode_predictions
 from utilities.loaders import load_file
 from utilities.visualizers import export_results
@@ -20,6 +18,7 @@ if __name__ == "__main__":
         # instantiate parser to take args from user in command line
         parser = ArgumentParser()
         parser.add_argument('-d', type=str, default="shakespeare", help="what text dataset/corpus to train model on")
+        parser.add_argument('--model', type=str, default="GenPhiloTextA", help="what model to use")
         parser.add_argument('--emb_dim', type=int, default=32, help='number of features to use in character embedding matrix/lookup')
         parser.add_argument('-n_a', type=int, default=64, help='number of units in an LSTM cell')
         parser.add_argument('-T_x', type=int, default=100, help='length (+ 1) of each partitioned sequence in the corpus')
@@ -38,9 +37,8 @@ if __name__ == "__main__":
         chars = get_chars(corpus)
         char_to_idx = map_value_to_index(chars)
         idx_to_char = map_value_to_index(chars, inverted=True)
-        print("loading corpus successful!\n")
-
         n_unique = len(char_to_idx.get_vocabulary())
+        print("loading corpus successful!\n")
 
         # create dataset X and Y which will have shapes (m, T_x) 
         # and (m, T_y, n_unique) respectively
@@ -61,36 +59,44 @@ if __name__ == "__main__":
         sample_h = tf.zeros(shape=(1, args.n_a))
         sample_c = tf.zeros(shape=(1, args.n_a))
 
-        # instantiate architecture of, build, and load model
-        model = Model(
-            emb_dim=args.emb_dim, 
-            n_a=args.n_a, 
-            n_unique=n_unique, 
-            dense_layers_dims=args.dense_layers_dims + [n_unique], 
-            lambda_=args.lambda_, 
-            drop_prob=args.drop_prob,
-            normalize=args.normalize)
-        
-        # model = Model(
-        #     emb_dim=args.emb_dim, 
-        #     n_a=args.n_a, 
-        #     n_unique=n_unique, 
-        #     T_x=args.T_x, 
-        #     dense_layers_dims=args.dense_layers_dims + [n_unique], 
-        #     lambda_=args.lambda_, 
-        #     drop_prob=args.drop_prob,
-        #     normalize=args.normalize)
+        if args.model.lower() == "genphilotexta":
+            from models.arcs import GenPhiloTextA as Model
 
-        model(X)
+            # instantiate architecture of, build, and load model
+            model = Model(
+                emb_dim=args.emb_dim, 
+                n_a=args.n_a, 
+                n_unique=n_unique, 
+                dense_layers_dims=args.dense_layers_dims + [n_unique], 
+                lambda_=args.lambda_, 
+                drop_prob=args.drop_prob,
+                normalize=args.normalize)
+            
+            input = X
+        elif args.model.lower() == "genphilotextb":
+            from models.arcs import GenPhiloTextB as Model
 
-        # model([sample_input, sample_h, sample_c])
-        
+            model = Model(
+                emb_dim=args.emb_dim, 
+                n_a=args.n_a, 
+                n_unique=n_unique, 
+                T_x=args.T_x, 
+                dense_layers_dims=args.dense_layers_dims + [n_unique], 
+                lambda_=args.lambda_, 
+                drop_prob=args.drop_prob,
+                normalize=args.normalize)
+            
+            input = [X, h_0, c_0]
+        else:
+            raise RuntimeError("Model chosen does not exist.")
+            
+        model(input)
         print(model.summary(), end='\n')
-
+        
         # define loss, optimizer, and metrics and compile
         opt = Adam(learning_rate=args.alpha, beta_1=0.9, beta_2=0.999)
         loss = cce_loss(from_logits=True)
-        metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]
+        metrics = [CategoricalAccuracy(), cce_metric(from_logits=True), 'accuracy']
         model.compile(loss=loss, optimizer=opt, metrics=metrics)
 
         # define checkpoint and early stopping callback to save
@@ -98,29 +104,26 @@ if __name__ == "__main__":
         # of validation loss for 10 consecutive epochs
         weights_path = f"./saved/weights/{args.d}_{model.name}" + "_{epoch:02d}_{val_loss:.4f}.h5"
         checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
-        stopper = EarlyStopping(monitor='val_loss', patience=10)
+        stopper = EarlyStopping(monitor='val_loss', patience=5)
         callbacks = [checkpoint, stopper]
 
         # being training model
         print("commencing model training...\n")
-        history = model.fit(X, Y,
+        history = model.fit(input, Y,
             epochs=args.n_epochs, 
             batch_size=args.batch_size, 
             callbacks=callbacks,
             validation_split=0.3,
             verbose=2)
         
-        # history = model.fit([X, h_0, c_0], Y, 
-        #     epochs=args.n_epochs, 
-        #     batch_size=args.batch_size, 
-        #     callbacks=callbacks,
-        #     validation_split=0.3,
-        #     verbose=2)
-        
         # export png iamge of results
         export_results(history, args.d, ['loss', 'val_loss'], image_only=False)
+        export_results(history, args.d, ['categorical_crossentropy', 'val_categorical_crossentropy'], image_only=False)
+        export_results(history, args.d, ['accuracy', 'val_accuracy'], image_only=False)
 
 
     except ValueError as e:
         print(e)
-        print("You have entered an unpermitted value for the number of timesteps T_x. Try a higher value")
+
+    except RuntimeError as e:
+        print(e)
