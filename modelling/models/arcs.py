@@ -46,12 +46,25 @@ class GenPhiloTextA(tf.keras.Model):
         self.act_layers = [Activation(activation=tf.nn.relu, name=f'act-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
         self.drop_layers = [Dropout(drop_prob, name=f'drop-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
 
-    def call(self, inputs, states=None, return_state=False, training=False):
+    def call(self, inputs, h=None, c=None, return_state=False, training=False):
+        """
+        args:
+            inputs - 
+            states - is a list containing initial state or current state
+            h and c
+            return_state -
+            training - 
+        """
+
         # get batch of training examples
         X = inputs
         embeddings = self.character_lookup(X, training=training)
 
-        if states is None:
+        # check if states are empty. Note h and c will of
+        # course be None during training so this is the reason
+        # why self.lstm_layer.get_initial_state() is called
+        # but during inference state will be provided using loop
+        if h is None and c is None:
             h, c = self.lstm_layer.get_initial_state(embeddings)
         hs, h, c = self.lstm_layer(embeddings, initial_state=[h, c], training=training)
 
@@ -297,7 +310,7 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model_a(model, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
+def generate(model, char_to_idx=None, seed: str="A", T_x: int=250, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
     """
     args:
         model - the model that was trained
@@ -323,6 +336,30 @@ def load_inf_model_a(model, char_to_idx=None, T_x: int=100, chars_to_skip: list=
     ids_to_skip = char_to_idx(chars_to_skip)[:, None]
     sparse_mask_vector = tf.SparseTensor(values=[float('-inf')] * len(ids_to_skip), indices=ids_to_skip, dense_shape=[n_chars])
     dense_mask_vector = tf.reshape(tf.sparse.to_dense(sparse_mask_vector), shape=(1, -1))
+
+    # initialize states and transform seed e.g.
+    # "ROMEO" into a (1, T_x) input in this case
+    # (1, 5) input [[<id of R>, <id of O>, ...]]
+    seed = [list(seed)]
+    input_ids = char_to_idx(seed)
+    h, c = None, None
+    out_ids = [seed]
+
+    for i in range(T_x):
+        pred_logits, h, c = model(inputs=input_ids, h=h, c=c, return_state=True)
+
+        # get only the last predicted char of the model, since 
+        # seed will always vary e.g. a (1, 120) or (m, 120) will predict 
+        # a (1, 120, n_unique) or (m, 120, n_unique) Y, likewise a
+        # (1, 5) or (m, 5) will predict a (1, 5, n_unique) (m, 5, n_unique)
+        # Y. SO get only the prediction at the last timestep. Output shape 
+        # will now be (1, n_unique).
+        pred_logits = pred_logits[:, -1, :]
+        pred_logits = pred_logits / temperature
+        pred_logits = pred_logits + dense_mask_vector
+
+        # sample from multinomial distribution
+        pred_ids = tf.random.categorical(pred_logits, num_samples=1)
 
 
 
