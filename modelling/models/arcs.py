@@ -310,10 +310,15 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def generate(model, char_to_idx=None, seed: str="A", T_x: int=250, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
+def generate(model, prompts: list, char_to_idx=None, T_x: int=250, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
     """
     args:
         model - the model that was trained
+
+        prompts - a list of string/s of any varying length e.g.
+        ["Romeo", "Hello World", "Mike", "Charlie", "I", ...] that 
+        will be used as seed to generate oen character per timestep
+        using the trained model
 
         char_to_idx - the lookup layer/table to map characters to
         their respective indeces or id's
@@ -329,8 +334,9 @@ def generate(model, char_to_idx=None, seed: str="A", T_x: int=250, chars_to_skip
         would mean more creativity or diversity of characters generated.
         A lower one would mean the opposite.
     """
+
     # get number of all unique chars including '[UNK]' char
-    n_chars = char_to_idx.get_vocabulary()
+    n_chars = len(char_to_idx.get_vocabulary())
 
     # ids to skip has shape (1, 1)
     ids_to_skip = char_to_idx(chars_to_skip)[:, None]
@@ -340,20 +346,25 @@ def generate(model, char_to_idx=None, seed: str="A", T_x: int=250, chars_to_skip
     # initialize states and transform seed e.g.
     # "ROMEO" into a (1, T_x) input in this case
     # (1, 5) input [[<id of R>, <id of O>, ...]]
-    seed = [list(seed)]
-    input_ids = char_to_idx(seed)
+    input_chars = tf.strings.unicode_split(prompts, 'UTF-8')
+    input_ids = char_to_idx(input_chars).to_tensor()
     h, c = None, None
-    out_ids = [seed]
+    output_ids = input_ids
+    print(output_ids)
 
-    for i in range(T_x):
+    for _ in range(T_x):
+        if _ % 10:
+            print(f"iteration {_}")
+
         pred_logits, h, c = model(inputs=input_ids, h=h, c=c, return_state=True)
+        print(pred_logits)
 
         # get only the last predicted char of the model, since 
         # seed will always vary e.g. a (1, 120) or (m, 120) will predict 
         # a (1, 120, n_unique) or (m, 120, n_unique) Y, likewise a
         # (1, 5) or (m, 5) will predict a (1, 5, n_unique) (m, 5, n_unique)
         # Y. SO get only the prediction at the last timestep. Output shape 
-        # will now be (1, n_unique).
+        # will now be (1, n_unique) or (m, n_unique).
         pred_logits = pred_logits[:, -1, :]
         pred_logits = pred_logits / temperature
         pred_logits = pred_logits + dense_mask_vector
@@ -361,7 +372,17 @@ def generate(model, char_to_idx=None, seed: str="A", T_x: int=250, chars_to_skip
         # sample from multinomial distribution
         pred_ids = tf.random.categorical(pred_logits, num_samples=1)
 
+        # update output ids by concatenating newly predicted
+        # set of ids, which will have shapes (m, T_x ) or (1, T_x) 
+        # depending on number of given prompts
+        output_ids = tf.concat([output_ids, pred_ids], axis=1)
 
+        # set input_ids to the sampled and predicted ids and
+        # start loop again for sampling
+        input_ids = pred_ids
+
+    # return all concatenated ids
+    return output_ids
 
 def load_inf_model_b(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
     """
