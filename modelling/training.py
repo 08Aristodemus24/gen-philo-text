@@ -1,5 +1,6 @@
 # main model training here
-from models.arcs import load_inf_model, GenPhiloText
+from models.arcs import GenPhiloTextA as Model
+# from models.arcs import GenPhiloTextB as Model
 from utilities.preprocessors import preprocess, get_chars, map_value_to_index, init_sequences_b, decode_predictions
 from utilities.loaders import load_file
 from utilities.visualizers import export_results
@@ -59,16 +60,31 @@ if __name__ == "__main__":
         sample_input = tf.random.uniform(shape=(1, args.T_x), minval=0, maxval=n_unique - 1, dtype=tf.int32)
         sample_h = tf.zeros(shape=(1, args.n_a))
         sample_c = tf.zeros(shape=(1, args.n_a))
-        model = GenPhiloText(
+
+        # instantiate architecture of, build, and load model
+        model = Model(
             emb_dim=args.emb_dim, 
             n_a=args.n_a, 
             n_unique=n_unique, 
-            T_x=args.T_x, 
             dense_layers_dims=args.dense_layers_dims + [n_unique], 
             lambda_=args.lambda_, 
             drop_prob=args.drop_prob,
             normalize=args.normalize)
-        model([sample_input, sample_h, sample_c])
+        
+        # model = Model(
+        #     emb_dim=args.emb_dim, 
+        #     n_a=args.n_a, 
+        #     n_unique=n_unique, 
+        #     T_x=args.T_x, 
+        #     dense_layers_dims=args.dense_layers_dims + [n_unique], 
+        #     lambda_=args.lambda_, 
+        #     drop_prob=args.drop_prob,
+        #     normalize=args.normalize)
+
+        model(X)
+
+        # model([sample_input, sample_h, sample_c])
+        
         print(model.summary(), end='\n')
 
         # define loss, optimizer, and metrics and compile
@@ -80,19 +96,26 @@ if __name__ == "__main__":
         # define checkpoint and early stopping callback to save
         # best weights at each epoch and to stop if there is no improvement
         # of validation loss for 10 consecutive epochs
-        weights_path = f"./saved/weights/{args.d}_gen_philo_text" + "_{epoch:02d}_{val_loss:.4f}.h5"
+        weights_path = f"./saved/weights/{args.d}_{model.name}" + "_{epoch:02d}_{val_loss:.4f}.h5"
         checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
         stopper = EarlyStopping(monitor='val_loss', patience=10)
         callbacks = [checkpoint, stopper]
 
         # being training model
         print("commencing model training...\n")
-        history = model.fit([X, h_0, c_0], Y, 
+        history = model.fit(X, Y,
             epochs=args.n_epochs, 
             batch_size=args.batch_size, 
             callbacks=callbacks,
             validation_split=0.3,
             verbose=2)
+        
+        # history = model.fit([X, h_0, c_0], Y, 
+        #     epochs=args.n_epochs, 
+        #     batch_size=args.batch_size, 
+        #     callbacks=callbacks,
+        #     validation_split=0.3,
+        #     verbose=2)
         
         # export png iamge of results
         export_results(history, args.d, ['loss', 'val_loss'], image_only=False)

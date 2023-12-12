@@ -24,9 +24,76 @@ import numpy as np
 
 
 @tf.keras.utils.register_keras_serializable()
-class GenPhiloText(tf.keras.Model):
+class GenPhiloTextA(tf.keras.Model):
+    def __init__(self, emb_dim=32, n_a=128, n_unique=26, dense_layers_dims=[26], lambda_=1, drop_prob=0.0, normalize=False, **kwargs):
+        super(GenPhiloTextA, self).__init__(**kwargs)
+        self.emb_dim = emb_dim
+        self.n_a = n_a
+        self.n_unique = n_unique
+        self.dense_layers_dims = dense_layers_dims
+        self.lambda_ = lambda_
+        self.drop_prob = drop_prob
+
+        # number of time steps or length of longest sequences/training example
+        self.n_dense_layers = len(dense_layers_dims)
+        self.normalize = normalize
+
+        # instantiate layers
+        self.character_lookup = Embedding(n_unique, emb_dim, name='character-lookup', embeddings_regularizer=L2(lambda_))
+        self.lstm_layer = LSTM(units=n_a, return_sequences=True, return_state=True, name='lstm-layer')
+        self.dense_layers = [Dense(units=dim, name=f'dense-layer-{i}', kernel_regularizer=L2(lambda_)) for i, dim, in enumerate(dense_layers_dims)]
+        self.norm_layers = [BatchNormalization(name=f'norm-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
+        self.act_layers = [Activation(activation=tf.nn.relu, name=f'act-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
+        self.drop_layers = [Dropout(drop_prob, name=f'drop-layer-{i}') for i in range(len(dense_layers_dims) - 1)]
+
+    def call(self, inputs, states=None, return_state=False, training=False):
+        # get batch of training examples
+        X = inputs
+        embeddings = self.character_lookup(X, training=training)
+
+        if states is None:
+            h, c = self.lstm_layer.get_initial_state(embeddings)
+        hs, h, c = self.lstm_layer(embeddings, initial_state=[h, c], training=training)
+
+        temp = hs
+        for i in range(self.n_dense_layers - 1):
+            temp = self.dense_layers[i](temp, training=training)
+                
+            # if normalize is false do not permit passing temp 
+            # to batch normalization layer
+            if self.normalize == True:
+                temp = self.norm_layers[i](temp, training=training)
+
+            # note model only passes the activation to dropout 
+            # during training
+            temp = self.act_layers[i](temp, training=training)
+            temp = self.drop_layers[i](temp, training=training)
+
+        # output logits will be a (m, Ty, n_unique) 
+        logits = self.dense_layers[-1](temp, training=training)
+
+        # only is the logits, h, and c are returned during 
+        # sampling but during training only logits are 
+        # returned per batch of inputs
+        return (logits, h, c) if return_state == True else logits
+    
+    def get_config(self):
+        config = super(GenPhiloTextA, self).get_config()
+        config['emb_dim'] = self.emb_dim
+        config['n_a'] = self.n_a
+        config['n_unique'] = self.n_unique
+        config['dense_layers_dims'] = self.dense_layers_dims
+        config['lambda_'] = self.lambda_
+        config['drop_prob'] = self.drop_prob
+        config['normalize'] = self.normalize
+
+        return config
+
+
+@tf.keras.utils.register_keras_serializable()
+class GenPhiloTextB(tf.keras.Model):
     def __init__(self, emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims=[26], lambda_=1, drop_prob=0.0, normalize=False, **kwargs):
-        super(GenPhiloText, self).__init__(**kwargs)
+        super(GenPhiloTextB, self).__init__(**kwargs)
         self.emb_dim = emb_dim
         self.n_a = n_a
         self.n_unique = n_unique
@@ -116,7 +183,7 @@ class GenPhiloText(tf.keras.Model):
         return out_logits
     
     def get_config(self):
-        config = super(GenPhiloText, self).get_config()
+        config = super(GenPhiloTextB, self).get_config()
         config['emb_dim'] = self.emb_dim
         config['n_a'] = self.n_a
         config['n_unique'] = self.n_unique
@@ -230,7 +297,10 @@ def load_alt_model_b(emb_dim=32, n_a=128, n_unique=26, T_x=50, dense_layers_dims
 
     return Model(inputs=[X, h_0, c_0], outputs=out_logits)
 
-def load_inf_model(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
+def load_inf_model_a():
+    pass
+
+def load_inf_model_b(char_emb_layer, lstm_cell, dense_layers: list, norm_layers: list=None, char_to_idx=None, T_x: int=100, chars_to_skip: list=['[UNK]'], temperature: float=1.0):
     """
     args:
         char_emb_layer - 
@@ -387,31 +457,40 @@ if __name__ == "__main__":
     c_0 = np.zeros(shape=(m, n_a))
 
     # instantiate custom model
-    model = GenPhiloText(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
+    model = GenPhiloTextA(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
+    # model = GenPhiloTextB(emb_dim=emb_dim, n_a=n_a, n_unique=n_unique, T_x=T_x, dense_layers_dims=dense_layers_dims, lambda_=lambda_, drop_prob=drop_prob, normalize=normalize)
 
     # define loss, optimizer, and metrics then compile
     opt = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.999)
     loss = cce_loss(from_logits=True)
     metrics = [CategoricalAccuracy(), cce_metric(from_logits=True)]    
     model.compile(optimizer=opt, loss=loss, metrics=metrics)
-    model([X, h_0, c_0])
+    model(X)
+    # model([X, h_0, c_0])
     model.summary()
 
     # define checkpoint and early stopping callback to save
     # best weights at each epoch and to stop if there is no improvement
     # of validation loss for 10 consecutive epochs
-    weights_path = "../saved/weights/test_alt_model_b_{epoch:02d}_{val_loss:.4f}.h5"
+    weights_path = f"../saved/weights/test_{model.name}" + "_{epoch:02d}_{val_loss:.4f}.h5"
     checkpoint = ModelCheckpoint(weights_path, monitor='val_loss', verbose=1, save_best_only=True, save_weights_only=True, mode='min')
     stopper = EarlyStopping(monitor='val_loss', patience=10)
     callbacks = [checkpoint, stopper]
 
     # begin training test model
-    history = model.fit([X, h_0, c_0], Y_true, 
+    history = model.fit(X, Y_true, 
         epochs=epochs,
         batch_size=batch_size, 
         callbacks=callbacks,
         validation_split=0.3,
         verbose=2,)
+    
+    # history = model.fit([X, h_0, c_0], Y_true, 
+    #     epochs=epochs,
+    #     batch_size=batch_size, 
+    #     callbacks=callbacks,
+    #     validation_split=0.3,
+    #     verbose=2,)
     
     # save model
     # model.save_weights('../saved/weights/test_model_gen_philo_text.h5', save_format='h5')
