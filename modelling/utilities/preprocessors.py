@@ -260,7 +260,7 @@ def decode_predictions(pred_ids, idx_to_char):
     them into the full generated sentence itself
     """
     char_list = idx_to_char(pred_ids)
-    char_list = tf.reshape(char_list, shape=(-1,)).numpy()
+    char_list = tf.reshape(char_list, shape=(-1, char_list)).numpy()
     joined_seq = b"".join(char_list)
     final_seq = str(joined_seq, "utf-8")
 
