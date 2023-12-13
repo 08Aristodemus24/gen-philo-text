@@ -71,20 +71,21 @@
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
-  outline: 1px solid rgba(255, 255, 255, 0.09);
-  /* outline: 2px solid salmon; */
+  /* outline: 1px solid rgba(255, 255, 255, 0.09); */
+  
 }
 
 .messages-container{
   /* size */
   height: 75vh;
-  padding: 0.25rem;
+  padding: 1rem;
+  margin-block: 1px;
 
   /* containment */
   overflow-y: scroll;
 
   /* design */
-  /* outline: 2px solid saddlebrown; */
+  outline: 1px solid rgba(255, 255, 255, 0.295);
 }
 
 .messages-container::-webkit-scrollbar{
@@ -105,10 +106,15 @@
 .prompts-container{
   /* spacing */
   padding-inline: 1rem;
-  padding-block: 0.5rem;
+  padding-block: 0.75rem;
+
+  /* display */
+  display: flex;
+  align-items: center;
+  gap: 2rem;
 
   /* design */
-  border-top: 1px solid rgba(255, 255, 255, 0.295);
+  outline: 1px solid rgba(255, 255, 255, 0.295);
   /* outline: 1px solid greenyellow; */
 }
 
@@ -121,11 +127,10 @@
   border-right: none;
   border-left: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.295);
-  /* outline: 1px solid brown; */
   
   /* size */
   width: 100%;
-  height: 3rem;
+  height: 2.5rem;
 
   /* display */
   display: block;
@@ -145,4 +150,8 @@
 /* Microsoft Edge */
 .prompts-field::-ms-input-placeholder{ 
   color: rgba(255, 255, 255, 0.5);
+}
+
+.prompts-container .generate-btn{
+  outline: 1px solid rgba(255, 255, 255, 0.295);
 }
