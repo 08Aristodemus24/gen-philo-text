@@ -2,3 +2,28 @@
 /modelling/data/ClarQ dataset/
 /server-side/.env
 /modelling/saved/
+
+# Logs
+/client-side/logs
+/client-side/*.log
+/client-side/npm-debug.log*
+/client-side/yarn-debug.log*
+/client-side/yarn-error.log*
+/client-side/pnpm-debug.log*
+/client-side/lerna-debug.log*
+
+/client-side/node_modules
+/client-side/dist
+/client-side/dist-ssr
+/client-side/*.local
+
+# Editor directories and files
+/client-side/.vscode/*
+/client-side/!.vscode/extensions.json
+/client-side/.idea
+/client-side/.DS_Store
+/client-side/*.suo
+/client-side/*.ntvs*
+/client-side/*.njsproj
+/client-side/*.sln
+/client-side/*.sw?
