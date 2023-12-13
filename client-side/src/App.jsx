@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import Section from './components/Section';
 
 import './content.css'
+import Glass from './components/Glass';
 
 function App() {
   useEffect(() => {
@@ -10,8 +11,7 @@ function App() {
 
   return (
     <Section section-name={"landing"}>
-      <h1>hello world</h1>
-      <button>test</button>
+      <Glass></Glass>
     </Section>
   )
 }
