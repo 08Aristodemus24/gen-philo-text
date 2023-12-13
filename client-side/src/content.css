@@ -89,7 +89,7 @@
 
 .messages-container::-webkit-scrollbar{
   width: 0.25rem;
-  background-color: rgba(0, 0, 0, 0.068);
+  /* background-color: rgba(0, 0, 0, 0.068); */
 }
 
 .messages-container::-webkit-scrollbar-thumb{
@@ -103,14 +103,19 @@
 }
 
 .prompts-container{
-  padding: 1rem;
+  /* spacing */
+  padding-inline: 1rem;
+  padding-block: 0.5rem;
+
+  /* design */
+  border-top: 1px solid rgba(255, 255, 255, 0.295);
   /* outline: 1px solid greenyellow; */
 }
 
 .prompts-container .prompts-field{
   /* design */
   background-color: transparent;
-  font-size: clamp(12px, 1vw, 1rem);
+  /* font-size: clamp(12px, 1vw, 1rem); */
   color: white;
   border-top: none;
   border-right: none;
