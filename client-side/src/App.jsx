@@ -1,12 +1,18 @@
-import { useState } from 'react'
-import './App.css'
+import { useEffect, useState } from 'react'
+import Section from './components/Section';
+
+import './content.css'
 
 function App() {
+  useEffect(() => {
+    console.log('fetching resources');
+  })
 
   return (
-    <>
-      <div>hello world</div>
-    </>
+    <Section section-name={"landing"}>
+      <h1>hello world</h1>
+      <button>test</button>
+    </Section>
   )
 }
 
