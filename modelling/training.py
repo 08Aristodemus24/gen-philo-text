@@ -1,6 +1,6 @@
 # main model training here
 from utilities.preprocessors import preprocess, get_chars, map_value_to_index, init_sequences_b, decode_predictions
-from utilities.loaders import load_file
+from utilities.loaders import load_file, save_hyper_params, save_lookup_table
 from utilities.visualizers import export_results
 
 from tensorflow.keras.losses import CategoricalCrossentropy as cce_loss
@@ -11,7 +11,9 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 import tensorflow as tf
 
 import numpy as np
+import json
 from argparse import ArgumentParser
+
 
 if __name__ == "__main__":
     try:
@@ -121,6 +123,19 @@ if __name__ == "__main__":
         export_results(history, args.d, ['categorical_crossentropy', 'val_categorical_crossentropy'], image_only=False)
         export_results(history, args.d, ['accuracy', 'val_accuracy'], image_only=False)
 
+        # export all hyperparams used
+        # converting args using vars() will result in the dicitonary
+        # of all hyper parameters e.g. {'d': 'notes', 'model': 'GenPhiloTextA', 
+        # 'emb_dim': 256, 'n_a': 512, 'T_x': 100, 'dense_layers_dims': [], 
+        # 'batch_size': 128, 'alpha': 0.001, 'lambda_': 0.8, 'drop_prob': 0.4, 
+        # 'n_epochs': 100, 'normalize': False}
+        # Note to add n_unique to hyper params dict
+        hyper_params = vars(args)
+        hyper_params['n_unique'] = n_unique
+        save_hyper_params('./saved/misc/hyper_params.json', hyper_params)
+
+        # save also the lookup table used
+        save_lookup_table('./saved/misc/char_to_idx', char_to_idx.get_vocabulary(include_special_tokens=False))
 
     except ValueError as e:
         print(e)

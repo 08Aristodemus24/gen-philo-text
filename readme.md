@@ -37,3 +37,12 @@ solution: in text generation models you can use other metrics other than accurac
 python training.py -d notes --emb_dim 32 -n_a 64 -T_x 100 --dense_layers_dims 64 32 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --drop_prob 0.4 --n_epochs 100
 
 python training.py -d notes --emb_dim 256 -n_a 512 -T_x 100 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --n_epochs 30
+
+python training.py -d notes --emb_dim 256 -n_a 512 -T_x 100 --batch_size 128 --alpha 1e-3 --lambda_ 0.8 --n_epochs 100
+
+
+# Setting up backend
+**To do:**
+1. install flask, flask-cors
+2. write model loader code so that upon running backend server, written code will run before making a request
+3. run flask server by `flask --app <name of app e.g. server.py> run`

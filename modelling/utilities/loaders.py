@@ -1,5 +1,6 @@
 # define data loader functions here
 import pickle
+import json
 
 def load_file(path: str):
     """
@@ -28,3 +29,21 @@ def save_lookup_table(path: str, vocab: list):
 
     with open(path, 'wb') as file:
         pickle.dump(vocab, file)
+
+def save_hyper_params(path: str, hyper_params: dict):
+    """
+    saves dictionary of hyper parameters to dictionary
+    """
+
+    with open(path, 'w') as file:
+        json.dump(hyper_params, file)
+
+def load_hyper_params(path: str):
+    """
+    opposite of save_hyper_params()
+    """
+
+    with open(path, 'r') as file:
+        hyper_params = json.load(file)
+
+    return hyper_params
