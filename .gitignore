@@ -1,7 +1,7 @@
-/modelling/data/notes.txt
-/modelling/data/ClarQ dataset/
+server-side/modelling/data/notes.txt
+server-side/modelling/data/ClarQ dataset/
 /server-side/.env
-/modelling/saved/
+server-side/modelling/saved/
 
 # Logs
 /client-side/logs
