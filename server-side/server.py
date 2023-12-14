@@ -12,8 +12,11 @@ from datetime import datetime as dt
 from pathlib import Path
 import os
 
+# import and load model architectures as well as decoder
+from modelling.models.arcs import GenPhiloTextA, generate
+from modelling.utilities.preprocessors import decode_predictions
 
-
+import tensorflow as tf
 
 # # configure location of build file and the static html template file
 app = Flask(__name__, template_folder='static')
