@@ -14,7 +14,7 @@ import os
 # import and load model architectures as well as decoder
 from modelling.models.arcs import GenPhiloTextA, generate
 from modelling.utilities.preprocessors import decode_predictions, map_value_to_index
-from modelling.utilities.loaders import load_lookup_table
+from modelling.utilities.loaders import load_lookup_table, load_hyper_params
 
 import tensorflow as tf
 
@@ -31,12 +31,15 @@ CORS(app, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5173", "https://pr
 vocab = None
 char_to_idx = None
 idx_to_char = None
+hyper_params = None
+model = None
+
 def load_misc():
     """
     loads miscellaneous variables to be used by the model
     """
     global vocab 
-    vocab = load_lookup_table('../modelling/saved/misc/char_to_idx')
+    vocab = load_lookup_table('./modelling/saved/misc/char_to_idx')
 
     global char_to_idx 
     char_to_idx = map_value_to_index(vocab)
@@ -44,12 +47,48 @@ def load_misc():
     global idx_to_char
     idx_to_char = map_value_to_index(vocab, inverted=True)
 
+    global hyper_params
+    hyper_params = load_hyper_params('./modelling/saved/misc/hyper_params.json')
+
+def load_model():
+    """
+    prepares and loads sample input and custom model in
+    order to use trained weights/parameters/coefficients
+    """
+
+    # declare sample input in order ot 
+    # use load_weights() method
+    sample_input = tf.random.uniform(shape=(1, hyper_params['T_x']), minval=0, maxval=hyper_params['n_unique'] - 1, dtype=tf.int32)
+    sample_h = tf.zeros(shape=(1, hyper_params['n_a']))
+    sample_c = tf.zeros(shape=(1, hyper_params['n_a']))
+
+    # recreate model architecture
+    global model
+    model = GenPhiloTextA(
+        emb_dim=hyper_params['emb_dim'],
+        n_a=hyper_params['n_a'],
+        n_unique=hyper_params['n_unique'],
+        dense_layers_dims=hyper_params['dense_layers_dims'] + [hyper_params['n_unique']],
+        lambda_=hyper_params['lambda_'],
+        drop_prob=hyper_params['drop_prob'],
+        normalize=hyper_params['normalize'])
+    
+    # call model on sample input before loading weights
+    model(sample_input)
+
+    # load weights
+    model.load_weights('./modelling/saved/weights/notes_gen_philo_text_a_100_3.0299.h5')
+
 load_misc()
+load_model()
+
 
 
 @app.route('/')
 def index():
-    return f"{vocab}"
+    return f"{model.name}"
+
+
 
 @app.errorhandler(404)
 def page_not_found(error):
