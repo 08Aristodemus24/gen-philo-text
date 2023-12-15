@@ -25,7 +25,7 @@ app = Flask(__name__, template_folder='static')
 # api endpoint at http://127.0.0.1:5000/ we must set the allowed
 # origins or web apps with specific urls like http://127.0.0.1:5000
 # to be included otherwise it will be blocked by CORS policy
-CORS(app, origins=["http://127.0.0.1:5500", "http://127.0.0.1:5173", "https://project-alexander.vercel.app"])
+CORS(app, origins=["http://localhost:5173", "https://project-alexander.vercel.app"])
 
 # global variables
 vocab = None
@@ -87,6 +87,18 @@ load_model()
 @app.route('/')
 def index():
     return f"{model.name}"
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    raw_data = request.json
+    prompt = [raw_data['prompt']]
+    temperature = float(raw_data['temperature'])
+    print(raw_data)
+
+    pred_ids = generate(model, prompts=prompt, char_to_idx=char_to_idx, temperature=temperature)
+    decoded_ids = decode_predictions(pred_ids, idx_to_char=idx_to_char)
+
+    return jsonify({'message': decoded_ids})
 
 
 
