@@ -34,6 +34,8 @@ idx_to_char = None
 hyper_params = None
 model = None
 
+
+# functions to load miscellaneous variables, hyperparameters, and the model itself
 def load_misc():
     """
     loads miscellaneous variables to be used by the model
@@ -99,8 +101,6 @@ def predict():
     decoded_ids = decode_predictions(pred_ids, idx_to_char=idx_to_char)
 
     return jsonify({'message': decoded_ids})
-
-
 
 @app.errorhandler(404)
 def page_not_found(error):

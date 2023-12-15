@@ -17,16 +17,15 @@ function getCookie(name){
 }
 
 export default function Glass(){
+    // states
     let [messages, setMessages] = useState([]);
-    // const jsx_msg = test_msg.split('\n');
-
     let [prompt, setPrompt] = useState('');
     let [temperature, setTemperature] = useState(1.0);
-
     console.log(prompt);
 
+    // send post request with prompt and temperature
+    // to make predictions to model
     const csrf_token = getCookie('csrftoken');
-
     const generate = async (event) => {
         try{
             event.preventDefault();
@@ -56,6 +55,9 @@ export default function Glass(){
                 // such that new message is appended to previous
                 // set of messages
                 console.log(data);
+                setMessages((messages) => {
+                    return [...messages, data];
+                });
                 
 
             }else{
