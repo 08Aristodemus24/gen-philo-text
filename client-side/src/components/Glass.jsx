@@ -1,4 +1,6 @@
 import { Fragment, useState } from "react";
+import Message from "./Message";
+
 
 function getCookie(name){
     let cookieValue = null;
@@ -21,7 +23,11 @@ export default function Glass(){
     let [messages, setMessages] = useState([]);
     let [prompt, setPrompt] = useState('');
     let [temperature, setTemperature] = useState(1.0);
-    console.log(prompt);
+    let [seqLen, setSeqLen] = useState(250);
+    console.log(seqLen);
+
+    // build list of message components
+
 
     // send post request with prompt and temperature
     // to make predictions to model
@@ -35,7 +41,8 @@ export default function Glass(){
                 method: 'POST',
                 body: JSON.stringify({
                     prompt: prompt,
-                    temperature: temperature
+                    temperature: temperature,
+                    sequence_length: seqLen
                 }),
                 headers: { 
                     'X-CSRFToken': csrf_token,
@@ -74,26 +81,26 @@ export default function Glass(){
         <div className="glass-container">
             <div className="glass">
                 <div className="messages-container">
-                    <span className="message">
-                        {/* {jsx_msg.map((value, index) => {
-                            return <Fragment key={index}>{value}<br/></Fragment>
-                        })} */}
-                    </span>
-                    <span className="message">
-                        Lorem ipsum dolor sit amet consectetur, adipisicing elit. Beatae suscipit nesciunt voluptatum enim eum consequuntur nihil ratione rem inventore? Soluta, possimus eum iste iusto quo provident quia laborum fugit rem.
-                    </span>
-                    <span className="message">
-                        Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium magni ratione, earum adipisci voluptatum excepturi accusamus provident similique doloremque minima natus deleniti harum. Voluptatum veniam eos inventore enim cum recusandae?
-                    </span>
-                    <span className="message">
-                        Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium magni ratione, earum adipisci voluptatum excepturi accusamus provident similique doloremque minima natus deleniti harum. Voluptatum veniam eos inventore enim cum recusandae?
-                    </span>
-                    <span className="message">
-                        Lorem ipsum dolor sit amet consectetur adipisicing elit. Accusantium magni ratione, earum adipisci voluptatum excepturi accusamus provident similique doloremque minima natus deleniti harum. Voluptatum veniam eos inventore enim cum recusandae?
-                    </span>
+
                 </div>
                 <div className="prompts-container">
-                    <input onChange={(event) => setPrompt(event.target.value)} value={prompt} className="prompts-field" type="text" placeholder="Type a prompt e.g. Dostoevsky"/>
+                    <div className="prompt-group">
+                        <div className="input-container">
+                            <label htmlFor="prompt-field" className="prompt-label">prompt: </label>
+                            <input onChange={(event) => setPrompt(event.target.value)} value={prompt} id="prompt-field" className="prompt-field" type="text" placeholder="Type a prompt e.g. Dostoevsky"/>
+                        </div>
+                        
+                        <div className="input-container">
+                            <label htmlFor="temp-field" className="temp-label">temperature: </label>
+                            <input onChange={(event) => setTemperature(event.target.value)} type="range" value={temperature} min={0.0} max={2.0} step={0.01} id="temp-field"  className="temp-field"/>
+                        </div>
+                        
+                        <div className="input-container">
+                            <label htmlFor="seq-len-field" className="seq-len-label">sequence length: </label>
+                            <input onChange={(event) => setSeqLen(event.target.value)} type="number" id="seq-len-field" className="seq-len-field" placeholder={seqLen}/>
+                        </div>
+                    </div>
+
                     <button onClick={generate} className="generate-btn">generate</button>
                 </div>
             </div>

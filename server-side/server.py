@@ -95,9 +95,10 @@ def predict():
     raw_data = request.json
     prompt = [raw_data['prompt']]
     temperature = float(raw_data['temperature'])
+    T_x = raw_data['T_x']
     print(raw_data)
 
-    pred_ids = generate(model, prompts=prompt, char_to_idx=char_to_idx, temperature=temperature)
+    pred_ids = generate(model, prompts=prompt, char_to_idx=char_to_idx, T_x=T_x, temperature=temperature)
     decoded_ids = decode_predictions(pred_ids, idx_to_char=idx_to_char)
 
     return jsonify({'message': decoded_ids})

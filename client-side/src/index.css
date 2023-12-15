@@ -58,7 +58,7 @@ button{
   display: block;
   
   /* design */
-  outline: 1px solid rgba(255, 255, 255, 0.295);
+  outline: 1px solid rgba(255, 255, 255, 0.5);
   background-color: transparent;
   font-size: clamp(12px, 1vw, 1rem);
   border: none;
@@ -78,6 +78,6 @@ button{
 
 button:hover{
   /* design */
-  background-color: rgba(255, 255, 255, 0.295);
+  background-color: rgba(255, 255, 255, 0.5);
   color: white;
 }
