@@ -353,12 +353,9 @@ def generate(model, prompts: list, char_to_idx=None, T_x: int=250, chars_to_skip
     print(output_ids)
 
     for _ in range(T_x):
-        if _ % 10:
-            print(f"iteration {_}")
-
+        # calculate logits
         pred_logits, h, c = model(inputs=input_ids, h=h, c=c, return_state=True)
-        print(pred_logits)
-
+        
         # get only the last predicted char of the model, since 
         # seed will always vary e.g. a (1, 120) or (m, 120) will predict 
         # a (1, 120, n_unique) or (m, 120, n_unique) Y, likewise a
@@ -380,6 +377,10 @@ def generate(model, prompts: list, char_to_idx=None, T_x: int=250, chars_to_skip
         # set input_ids to the sampled and predicted ids and
         # start loop again for sampling
         input_ids = pred_ids
+
+        if _ % 10 == 0:
+            print(f"iteration {_}")
+            print(f"predicted logits: {pred_logits}")
 
     # return all concatenated ids
     return output_ids
