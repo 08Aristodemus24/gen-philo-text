@@ -95,7 +95,7 @@ def predict():
     raw_data = request.json
     prompt = [raw_data['prompt']]
     temperature = float(raw_data['temperature'])
-    T_x = raw_data['T_x']
+    T_x = int(raw_data['sequence_length'])
     print(raw_data)
 
     pred_ids = generate(model, prompts=prompt, char_to_idx=char_to_idx, T_x=T_x, temperature=temperature)

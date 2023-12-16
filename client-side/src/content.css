@@ -63,6 +63,9 @@
 }
 
 .glass{
+  /* spacing */
+  margin-block: 1rem;
+
   /* size */
   width: clamp(320px, 50vw, 1200px);
 
@@ -71,7 +74,8 @@
   box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(7px);
   -webkit-backdrop-filter: blur(7px);
-  /* outline: 1px solid rgba(255, 255, 255, 0.09); */
+  outline: 1px solid rgba(255, 255, 255, 0.09);
+  /* outline: 1px solid red; */
   
 }
 
@@ -110,7 +114,9 @@
 
   /* display */
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 2rem;
 
   /* design */
@@ -120,12 +126,12 @@
 
 .prompt-group{
   /* size */
-  width: 100%;
+  width: 75%;
 
   /* display */
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 1rem;
 }
 
 .input-container{
@@ -158,27 +164,6 @@
   flex-grow: 1;
 }
 
-.input-container .temp-field{
-  /* size */
-  height: 2.5rem;
-  flex-grow: 1;
-}
-
-.temp-field::-webkit-slider-runnable-track{
-  /* size */
-  height: 5px;
-
-  /* design */
-  cursor: pointer;
-  border-radius: 0px;
-  border: 0px solid black;
-  background: white;
-  box-shadow: none;
-  appearance: none;
-}
-
-
-/* Chrome, Firefox, Opera, Safari 10.1+ */
 .seq-len-field::placeholder,
 .prompt-field::placeholder{ 
   color: rgba(255, 255, 255, 0.295);
@@ -197,6 +182,75 @@
   color: rgba(255, 255, 255, 0.295);
 }
 
+.input-container .temp-field{
+  /* size */
+  flex-grow: 1;
+  align-self: flex-end;
+
+  /* design */
+  background-color: rgba(255, 255, 255, 0.5);
+  -webkit-appearance: none;
+}
+
+.temp-field::-webkit-slider-runnable-track{
+  /* size */
+  height: 1px;
+
+  /* design */
+  cursor: pointer;
+  border-radius: 0px;
+  border: 0px solid black;
+  box-shadow: none;
+  appearance: none;
+}
+
+.temp-field::-ms-track{
+  /* size */
+  height: 1px;
+
+  /* design */
+  cursor: pointer;
+  border-radius: 0px;
+  border: 0px solid black;
+  box-shadow: none;
+  appearance: none;
+}
+
+.temp-field::-webkit-slider-thumb{
+  /* size */
+  height: 20px;
+  width: 3px;
+
+  /* design */
+  box-shadow: none;
+  border: 0px solid black;
+  background-color: #a09ab1;
+  cursor: pointer;
+  margin-top: -10px;
+  -webkit-appearance: none;
+}
+
+.temp-field::-ms-thumb{
+  /* size */
+  height: 20px;
+  width: 3px;
+
+  /* design */
+  box-shadow: none;
+  border: 0px solid black;
+  background-color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  margin-top: -10px;
+  -webkit-appearance: none;
+}
+
 .prompts-container .generate-btn{
+  /* design */
   outline: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+@media (width < 640px){
+  .prompt-group{
+    width: 100%;
+  }
 }
