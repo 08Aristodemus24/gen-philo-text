@@ -27,7 +27,9 @@ export default function Glass(){
     console.log(seqLen);
 
     // build list of message components
-
+    const Messages = messages.map((value, index) => {
+        return <Message key={index} message={value}/>
+    });
 
     // send post request with prompt and temperature
     // to make predictions to model
@@ -36,7 +38,8 @@ export default function Glass(){
         try{
             event.preventDefault();
 
-            const url = 'http://127.0.0.1:5000/predict';
+            const url = "https://gen-philo-text.vercel.app/predict";
+            // const url = "http://127.0.0.1:5000/predict";
             const response = await fetch(url, {
                 method: 'POST',
                 body: JSON.stringify({
@@ -64,8 +67,7 @@ export default function Glass(){
                 console.log(data);
                 setMessages((messages) => {
                     return [...messages, data];
-                });
-                
+                });                
 
             }else{
                 console.log(`message submission unsucessful. Response status '${response.status}' occured`);
@@ -81,7 +83,7 @@ export default function Glass(){
         <div className="glass-container">
             <div className="glass">
                 <div className="messages-container">
-
+                    {Messages}
                 </div>
                 <div className="prompts-container">
                     <div className="prompt-group">

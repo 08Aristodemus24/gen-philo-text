@@ -103,8 +103,15 @@
 }
 
 .message{
+  /* display */
   display: block;
-  margin-block: 5rem;
+  
+  /* design */
+  list-style: none;
+  padding-left: 0;
+
+  /* spacing */
+  margin-block: 2.5rem;
 }
 
 .prompts-container{
@@ -116,7 +123,7 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: space-evenly;
   gap: 2rem;
 
   /* design */
@@ -126,7 +133,7 @@
 
 .prompt-group{
   /* size */
-  width: 75%;
+  width: 80%;
 
   /* display */
   display: flex;
@@ -250,6 +257,10 @@
 }
 
 @media (width < 640px){
+  .prompts-container{
+    justify-content: center;
+  }
+
   .prompt-group{
     width: 100%;
   }
