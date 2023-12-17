@@ -1,4 +1,4 @@
-# **STILL IN DEVELOPMENT**
+# **DEVELOPMENT FINISHED, DEPLOYMENT PENDING DUE TO EXCEEDING FILE SIZE**
 
 # A Model that will generate novel sequences of philosophical text based on writings about Jungian psychology, Biblical philosophy, and the lot.
 
