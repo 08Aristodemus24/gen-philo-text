@@ -25,7 +25,7 @@ app = Flask(__name__, template_folder='static')
 # api endpoint at http://127.0.0.1:5000/ we must set the allowed
 # origins or web apps with specific urls like http://127.0.0.1:5000
 # to be included otherwise it will be blocked by CORS policy
-CORS(app, origins=["http://localhost:5173", "https://gen-philo-text.vercel.app"])
+CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5000", "https://gen-philo-text.vercel.app"])
 
 # global variables
 vocab = None
