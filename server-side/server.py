@@ -41,7 +41,7 @@ def load_misc():
     loads miscellaneous variables to be used by the model
     """
     global vocab 
-    vocab = load_lookup_table('./modelling/saved/misc/char_to_idx')
+    vocab = load_lookup_table('./modelling/final/misc/char_to_idx')
 
     global char_to_idx 
     char_to_idx = map_value_to_index(vocab)
@@ -50,7 +50,7 @@ def load_misc():
     idx_to_char = map_value_to_index(vocab, inverted=True)
 
     global hyper_params
-    hyper_params = load_hyper_params('./modelling/saved/misc/hyper_params.json')
+    hyper_params = load_hyper_params('./modelling/final/misc/hyper_params.json')
 
 def load_model():
     """
@@ -79,7 +79,7 @@ def load_model():
     model(sample_input)
 
     # load weights
-    model.load_weights('./modelling/saved/weights/notes_gen_philo_text_a_100_3.0299.h5')
+    model.load_weights('./modelling/final/weights/notes_gen_philo_text_a_100_3.0299.h5')
 
 load_misc()
 load_model()
@@ -88,7 +88,7 @@ load_model()
 
 @app.route('/')
 def index():
-    return f"{model.name}"
+    return render_template('index.html')
 
 @app.route('/predict', methods=['POST'])
 def predict():

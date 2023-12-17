@@ -1,0 +1,1 @@
+{"d": "notes", "model": "GenPhiloTextA", "emb_dim": 256, "n_a": 512, "T_x": 100, "dense_layers_dims": [], "batch_size": 128, "alpha": 0.001, "lambda_": 0.8, "drop_prob": 0.4, "n_epochs": 100, "normalize": false, "n_unique": 57}
