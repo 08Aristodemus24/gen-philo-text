@@ -2,6 +2,11 @@
 
 # A Model that will generate novel sequences of philosophical text based on writings about Jungian psychology, Biblical philosophy, and the lot. Built with React.js, Flask, and Tensorflow
 
+# Demo:
+<video autoplay muted loop>
+    <source src="https://raw.githubusercontent.com/08Aristodemus24/gen-philo-text/master/demo.mp4" type="video/mp4">
+</video>
+
 # Usage usage
 1. assuming git is installed clone repository by running `git clone https://github.com/08Aristodemus24/gen-philo-text`
 2. assuming conda is also installed run `conda create -n <environment name e.g. gen-philo-text> python=3.11.5`. Note python version should be `3.11.5` for the to be created conda environment to avoid dependency/package incompatibility.
